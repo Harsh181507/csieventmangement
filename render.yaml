@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: csieventmangement
+    env: java
+    buildCommand: mvn clean package
+    startCommand: java -jar target/csieventmangement.jar
+    plan: free
