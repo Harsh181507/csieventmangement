@@ -1,0 +1,34 @@
+package com.harsh.csieventmangement.controller;
+
+import com.harsh.csieventmangement.dto.request.LoginRequest;
+import com.harsh.csieventmangement.dto.request.RegisterRequest;
+import com.harsh.csieventmangement.dto.response.AuthResponse;
+import com.harsh.csieventmangement.service.AuthService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+
+    // 🔹 Register API
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request
+    ) {
+        return ResponseEntity.ok(authService.register(request));
+    }
+
+    // 🔹 Login API
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @Valid @RequestBody LoginRequest request
+    ) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+}
