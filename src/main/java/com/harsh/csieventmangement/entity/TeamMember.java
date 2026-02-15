@@ -16,11 +16,11 @@ public class TeamMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "team_id")
     private Team team;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false)
     @JoinColumn(name = "user_id", unique = true)
     private User user;
 }

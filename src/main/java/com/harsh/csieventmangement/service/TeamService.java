@@ -29,6 +29,7 @@ public class TeamService {
             throw new ApiException("Only STUDENT can create teams", HttpStatus.FORBIDDEN);
         }
 
+
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->
                         new ApiException("Event not found", HttpStatus.NOT_FOUND));

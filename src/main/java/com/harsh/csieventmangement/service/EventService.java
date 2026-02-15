@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -40,8 +39,11 @@ public class EventService {
                 .description(request.getDescription())
                 .eventDate(request.getEventDate())
                 .createdBy(currentUser)
-                .scoringLocked(false)
-                .build();
+                .scoringLocked(false).maxTeamSize(request.getMaxTeamSize() != null
+                        ? request.getMaxTeamSize()
+                        : 4
+                ).build();
+
 
         eventRepository.save(event);
 
