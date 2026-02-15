@@ -44,7 +44,11 @@ public class TeamService {
                 .leader(user)
                 .build();
 
+// 🔥 Add leader as first member
+        team.getMembers().add(user);
+
         teamRepository.save(team);
+
 
         return "Team created successfully";
     }
@@ -56,4 +60,37 @@ public class TeamService {
                 .orElseThrow(() ->
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
     }
+
+    public String joinTeam(Long teamId) {
+
+        User user = getCurrentUser();
+
+        if (user.getRole() != Role.STUDENT) {
+            throw new ApiException("Only STUDENT can join teams", HttpStatus.FORBIDDEN);
+        }
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() ->
+                        new ApiException("Team not found", HttpStatus.NOT_FOUND));
+
+        Event event = team.getEvent();
+
+        if (event.isScoringLocked()) {
+            throw new ApiException("Cannot join team. Scoring locked", HttpStatus.BAD_REQUEST);
+        }
+
+        // 🔥 IMPORTANT PART (TEAM SIZE CHECK)
+        if (team.getMembers().size() >= event.getMaxTeamSize()) {
+            throw new ApiException(
+                    "Team already reached maximum allowed members",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        team.getMembers().add(user);
+        teamRepository.save(team);
+
+        return "Joined team successfully";
+    }
+
 }
