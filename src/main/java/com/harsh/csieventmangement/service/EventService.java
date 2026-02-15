@@ -1,12 +1,18 @@
 package com.harsh.csieventmangement.service;
 
+import com.harsh.csieventmangement.dto.request.CreateEventRequest;
+import com.harsh.csieventmangement.dto.response.EventResponse;
 import com.harsh.csieventmangement.entity.Event;
 import com.harsh.csieventmangement.entity.Team;
+import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.EventRepository;
 import com.harsh.csieventmangement.repository.TeamRepository;
+import com.harsh.csieventmangement.repository.UserRepository;
+import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,7 +23,55 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final TeamRepository teamRepository;
+    private final UserRepository userRepository;
 
+    // ✅ CREATE EVENT
+    public EventResponse createEvent(CreateEventRequest request) {
+
+        User user = getCurrentUser();
+
+        if (user.getRole() != Role.ORGANIZER) {
+            throw new ApiException("Only ORGANIZER can create events", HttpStatus.FORBIDDEN);
+        }
+
+        Event event = Event.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .eventDate(request.getEventDate())
+                .createdBy(user)
+                .maxTeamSize(request.getMaxTeamSize())
+                .build();
+
+        Event savedEvent = eventRepository.save(event);
+
+        return mapToResponse(savedEvent);
+    }
+
+
+    // ✅ GET ALL EVENTS
+    public List<EventResponse> getAllEvents() {
+
+        return eventRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+
+    // ✅ LOCK SCORING
+    public String lockScoring(Long eventId) {
+
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() ->
+                        new ApiException("Event not found", HttpStatus.NOT_FOUND));
+
+        event.setScoringLocked(true);
+        eventRepository.save(event);
+
+        return "Scoring locked successfully";
+    }
+
+    // ✅ UPDATE MAX TEAM SIZE
     public String updateMaxTeamSize(Long eventId, Integer newMaxSize) {
 
         if (newMaxSize == null || newMaxSize <= 0) {
@@ -47,4 +101,32 @@ public class EventService {
 
         return "Max team size updated successfully";
     }
+
+    // ✅ GET CURRENT USER
+    private User getCurrentUser() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
+
+    private EventResponse mapToResponse(Event event) {
+
+        EventResponse response = new EventResponse();
+
+        response.setId(event.getId());
+        response.setTitle(event.getTitle());
+        response.setDescription(event.getDescription());
+        response.setEventDate(event.getEventDate());
+        response.setMaxTeamSize(event.getMaxTeamSize());
+        response.setScoringLocked(event.isScoringLocked());
+
+        return response;
+    }
+
 }

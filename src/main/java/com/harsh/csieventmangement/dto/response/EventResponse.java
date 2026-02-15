@@ -17,5 +17,6 @@ public class EventResponse {
     private String description;
     private LocalDate eventDate;
     private Long createdBy;
+    private Integer maxTeamSize;
     private boolean scoringLocked;
 }
