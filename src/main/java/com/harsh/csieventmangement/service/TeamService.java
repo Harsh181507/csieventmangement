@@ -79,6 +79,11 @@ public class TeamService {
             throw new ApiException("Cannot join team. Scoring locked", HttpStatus.BAD_REQUEST);
         }
 
+        if (team.getMembers().contains(user)) {
+            throw new ApiException("You are already in this team", HttpStatus.BAD_REQUEST);
+        }
+
+
         // 🔥 IMPORTANT PART (TEAM SIZE CHECK)
         if (team.getMembers().size() >= event.getMaxTeamSize()) {
             throw new ApiException(
