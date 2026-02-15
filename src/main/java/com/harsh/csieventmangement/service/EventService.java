@@ -1,16 +1,12 @@
 package com.harsh.csieventmangement.service;
 
-import com.harsh.csieventmangement.dto.request.CreateEventRequest;
-import com.harsh.csieventmangement.dto.response.EventResponse;
 import com.harsh.csieventmangement.entity.Event;
-import com.harsh.csieventmangement.entity.User;
+import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.EventRepository;
-import com.harsh.csieventmangement.repository.UserRepository;
-import com.harsh.csieventmangement.util.Role;
+import com.harsh.csieventmangement.repository.TeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,99 +16,35 @@ import java.util.List;
 public class EventService {
 
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
 
-    // 🔹 Create Event (Only ORGANIZER)
-    public EventResponse createEvent(CreateEventRequest request) {
+    public String updateMaxTeamSize(Long eventId, Integer newMaxSize) {
 
-        User currentUser = getCurrentUser();
-
-        if (currentUser.getRole() != Role.ORGANIZER) {
-            throw new ApiException(
-                    "Only ORGANIZER can create events",
-                    HttpStatus.FORBIDDEN
-            );
-        }
-
-        Event event = Event.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .eventDate(request.getEventDate())
-                .createdBy(currentUser)
-                .scoringLocked(false).maxTeamSize(request.getMaxTeamSize() != null
-                        ? request.getMaxTeamSize()
-                        : 4
-                ).build();
-
-
-        eventRepository.save(event);
-
-        return mapToResponse(event);
-    }
-
-    // 🔹 Get All Events (Any authenticated user)
-    public List<EventResponse> getAllEvents() {
-
-        return eventRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
-    }
-
-    // 🔒 Lock Scoring (Only ORGANIZER)
-    public String lockScoring(Long eventId) {
-
-        User currentUser = getCurrentUser();
-
-        if (currentUser.getRole() != Role.ORGANIZER) {
-            throw new ApiException(
-                    "Only ORGANIZER can lock scoring",
-                    HttpStatus.FORBIDDEN
-            );
+        if (newMaxSize == null || newMaxSize <= 0) {
+            throw new ApiException("Max team size must be greater than 0", HttpStatus.BAD_REQUEST);
         }
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->
-                        new ApiException("Event not found", HttpStatus.NOT_FOUND)
-                );
+                        new ApiException("Event not found", HttpStatus.NOT_FOUND));
 
-        if (event.isScoringLocked()) {
-            throw new ApiException(
-                    "Scoring already locked",
-                    HttpStatus.BAD_REQUEST
-            );
+        List<Team> teams = teamRepository.findAll()
+                .stream()
+                .filter(t -> t.getEvent().getId().equals(eventId))
+                .toList();
+
+        for (Team team : teams) {
+            if (team.getMembers().size() > newMaxSize) {
+                throw new ApiException(
+                        "Cannot reduce max team size below existing team member count",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
         }
 
-        event.setScoringLocked(true);
+        event.setMaxTeamSize(newMaxSize);
         eventRepository.save(event);
 
-        return "Scoring locked successfully";
-    }
-
-    // 🔹 Helper: Get logged-in user
-    private User getCurrentUser() {
-
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
-
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found", HttpStatus.NOT_FOUND)
-                );
-    }
-
-    // 🔹 Helper: Map Event → EventResponse
-    private EventResponse mapToResponse(Event event) {
-
-        return EventResponse.builder()
-                .id(event.getId())
-                .title(event.getTitle())
-                .description(event.getDescription())
-                .eventDate(event.getEventDate())
-                .createdBy(event.getCreatedBy().getId())
-                .scoringLocked(event.isScoringLocked())
-                .build();
+        return "Max team size updated successfully";
     }
 }

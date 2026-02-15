@@ -1,6 +1,7 @@
 package com.harsh.csieventmangement.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -46,6 +47,7 @@ public class Event {
     private LocalDateTime createdAt;
 
     // 🔥 Organizer controlled max team size
+    @Min(value = 1, message = "Team size must be at least 1")
     @Column(name = "max_team_size", nullable = false)
     private Integer maxTeamSize = 4;
 
@@ -58,4 +60,8 @@ public class Event {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Team> teams;
+
 }

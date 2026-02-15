@@ -29,7 +29,6 @@ public class TeamService {
             throw new ApiException("Only STUDENT can create teams", HttpStatus.FORBIDDEN);
         }
 
-
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->
                         new ApiException("Event not found", HttpStatus.NOT_FOUND));
@@ -38,27 +37,25 @@ public class TeamService {
             throw new ApiException("Cannot create team. Scoring locked", HttpStatus.BAD_REQUEST);
         }
 
+        // 🔥 Prevent student from being in multiple teams of same event
+        if (teamRepository.findTeamByUserAndEvent(user, eventId).isPresent()) {
+            throw new ApiException(
+                    "You are already in a team for this event",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
         Team team = Team.builder()
                 .teamName(teamName)
                 .event(event)
                 .leader(user)
                 .build();
 
-// 🔥 Add leader as first member
         team.getMembers().add(user);
 
         teamRepository.save(team);
 
-
         return "Team created successfully";
-    }
-
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found", HttpStatus.NOT_FOUND));
     }
 
     public String joinTeam(Long teamId) {
@@ -79,12 +76,15 @@ public class TeamService {
             throw new ApiException("Cannot join team. Scoring locked", HttpStatus.BAD_REQUEST);
         }
 
-        if (team.getMembers().contains(user)) {
-            throw new ApiException("You are already in this team", HttpStatus.BAD_REQUEST);
+        // 🔥 Prevent joining multiple teams in same event
+        if (teamRepository.findTeamByUserAndEvent(user, event.getId()).isPresent()) {
+            throw new ApiException(
+                    "You are already in a team for this event",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-
-        // 🔥 IMPORTANT PART (TEAM SIZE CHECK)
+        // 🔥 Team size validation
         if (team.getMembers().size() >= event.getMaxTeamSize()) {
             throw new ApiException(
                     "Team already reached maximum allowed members",
@@ -98,4 +98,11 @@ public class TeamService {
         return "Joined team successfully";
     }
 
+    private User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
 }
