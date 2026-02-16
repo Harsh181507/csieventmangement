@@ -15,15 +15,13 @@ public class UserController {
 
     private final UserService userService;
 
-    //  Only ORGANIZER can change userrole
-    @PatchMapping("/{userId}/role")
+    @PutMapping("/role")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<String> updateUserRole(
-            @PathVariable Long userId,
             @Valid @RequestBody UpdateUserRoleRequest request
     ) {
         return ResponseEntity.ok(
-                userService.updateUserRole(userId, request.getRole())
+                userService.updateUserRole(request)
         );
     }
 }
