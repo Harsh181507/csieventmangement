@@ -7,6 +7,7 @@ import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.UserRepository;
 import com.harsh.csieventmangement.security.JwtUtil;
+import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,8 +20,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-
-    // 🔹 Register
+    // 🔹 Register (ALWAYS STUDENT)
     public AuthResponse register(RegisterRequest request) {
 
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -34,7 +34,7 @@ public class AuthService {
                 .name(request.getName())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole())
+                .role(Role.STUDENT)   // 🔥 FIXED
                 .build();
 
         userRepository.save(user);
