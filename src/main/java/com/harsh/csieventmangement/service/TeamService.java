@@ -1,5 +1,6 @@
 package com.harsh.csieventmangement.service;
 
+import com.harsh.csieventmangement.dto.response.TeamResponse;
 import com.harsh.csieventmangement.entity.Event;
 import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.entity.User;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -104,5 +107,22 @@ public class TeamService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
+
+    public List<TeamResponse> getTeamsByEvent(Long eventId) {
+
+        return teamRepository.findByEventId(eventId)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private TeamResponse mapToResponse(Team team) {
+
+        return TeamResponse.builder()
+                .id(team.getId())
+                .teamName(team.getTeamName())
+                .eventId(team.getEvent().getId())
+                .build();
     }
 }
