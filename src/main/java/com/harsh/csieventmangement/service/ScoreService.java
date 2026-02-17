@@ -1,6 +1,7 @@
 package com.harsh.csieventmangement.service;
 
 import com.harsh.csieventmangement.dto.request.SubmitScoreRequest;
+import com.harsh.csieventmangement.dto.response.LeaderboardResponse;
 import com.harsh.csieventmangement.entity.*;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.*;
@@ -10,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import com.harsh.csieventmangement.repository.JudgeAssignmentRepository;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -101,4 +105,19 @@ public class ScoreService {
                 .orElseThrow(() ->
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
     }
+    public List<LeaderboardResponse> getLeaderboard(Long eventId) {
+
+        List<Object[]> results = scoreRepository.calculateLeaderboard(eventId);
+
+        return results.stream()
+                .map(obj -> LeaderboardResponse.builder()
+                        .teamId((Long) obj[0])
+                        .teamName((String) obj[1])
+                        .totalScore((Long) obj[2])
+                        .build()
+                )
+                .collect(Collectors.toList());
+    }
+
+
 }

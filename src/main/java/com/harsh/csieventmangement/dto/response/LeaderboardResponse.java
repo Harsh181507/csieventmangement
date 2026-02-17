@@ -9,6 +9,6 @@ public class LeaderboardResponse {
 
     private Long teamId;
     private String teamName;
-    private Integer totalScore;
+    private Long totalScore;
     private Integer rank;
 }

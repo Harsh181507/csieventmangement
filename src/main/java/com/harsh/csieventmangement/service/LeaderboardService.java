@@ -40,7 +40,7 @@ public class LeaderboardService {
                     LeaderboardResponse.builder()
                             .teamId((Long) row[0])
                             .teamName((String) row[1])
-                            .totalScore(((Long) row[2]).intValue())
+                            .totalScore(((Long) row[2]))
                             .rank(rank++)
                             .build()
             );
