@@ -38,7 +38,6 @@ public class TeamController {
         );
     }
 
-    // 🔹 Join Team (Only STUDENT)
     @PostMapping("/join/{teamId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<String> joinTeam(
