@@ -2,6 +2,7 @@ package com.harsh.csieventmangement.controller;
 
 import com.harsh.csieventmangement.dto.request.SubmitScoreRequest;
 import com.harsh.csieventmangement.dto.response.LeaderboardResponse;
+import com.harsh.csieventmangement.dto.response.ScoreResponse;
 import com.harsh.csieventmangement.service.ScoreService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,5 +35,13 @@ public class ScoreController {
     ) {
         return ResponseEntity.ok(scoreService.getLeaderboard(eventId));
     }
+    @GetMapping("/judge")
+    @PreAuthorize("hasRole('JUDGE')")
+    public ResponseEntity<List<ScoreResponse>> getScoresByJudge() {
+        return ResponseEntity.ok(
+                scoreService.getScoresByJudge()
+        );
+    }
+
 
 }

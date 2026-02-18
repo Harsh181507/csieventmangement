@@ -2,6 +2,7 @@ package com.harsh.csieventmangement.service;
 
 import com.harsh.csieventmangement.dto.request.CreateEventRequest;
 import com.harsh.csieventmangement.dto.response.EventResponse;
+import com.harsh.csieventmangement.dto.response.JudgeEventResponse;
 import com.harsh.csieventmangement.entity.Event;
 import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.entity.User;
@@ -135,5 +136,26 @@ public class EventService {
 
         return response;
     }
+
+    public List<JudgeEventResponse> getJudgeEvents() {
+
+        User judge = getCurrentUser();
+
+        if (judge.getRole() != Role.JUDGE) {
+            throw new ApiException("Only JUDGE can access", HttpStatus.FORBIDDEN);
+        }
+
+        return eventJudgeRepository.findByJudge(judge)
+                .stream()
+                .map(ej -> JudgeEventResponse.builder()
+                        .id(ej.getEvent().getId())
+                        .title(ej.getEvent().getTitle())
+                        .description(ej.getEvent().getDescription())
+                        .scoringLocked(ej.getEvent().isScoringLocked())
+                        .build()
+                )
+                .toList();
+    }
+
 
 }

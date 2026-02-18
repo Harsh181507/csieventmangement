@@ -2,6 +2,7 @@ package com.harsh.csieventmangement.service;
 
 import com.harsh.csieventmangement.dto.request.SubmitScoreRequest;
 import com.harsh.csieventmangement.dto.response.LeaderboardResponse;
+import com.harsh.csieventmangement.dto.response.ScoreResponse;
 import com.harsh.csieventmangement.entity.*;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.*;
@@ -118,6 +119,32 @@ public class ScoreService {
                 )
                 .collect(Collectors.toList());
     }
+    public List<ScoreResponse> getScoresByJudge() {
+
+        User judge = getCurrentUser();
+
+        if (judge.getRole() != Role.JUDGE) {
+            throw new ApiException(
+                    "Only JUDGE can view their scores",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+
+        return scoreRepository.findByJudge(judge)
+                .stream()
+                .map(score -> ScoreResponse.builder()
+                        .scoreId(score.getId())
+                        .teamId(score.getTeam().getId())
+                        .teamName(score.getTeam().getTeamName())
+                        .criteriaId(score.getCriteria().getId())
+                        .criteriaTitle(score.getCriteria().getTitle())
+                        .scoreValue(score.getScoreValue())
+                        .build()
+                )
+                .toList();
+    }
+
+
 
 
 }
