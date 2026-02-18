@@ -13,4 +13,6 @@ public interface EventJudgeRepository extends JpaRepository<EventJudge, Long> {
     Optional<EventJudge> findByEventAndJudge(Event event, User judge);
 
     List<EventJudge> findByJudge(User judge);
+
+    boolean existsByEventAndJudge(Event event, User judge);
 }

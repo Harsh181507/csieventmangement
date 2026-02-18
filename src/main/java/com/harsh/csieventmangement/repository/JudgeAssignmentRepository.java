@@ -14,4 +14,6 @@ public interface JudgeAssignmentRepository extends JpaRepository<JudgeAssignment
     Optional<JudgeAssignment> findByTeamAndJudge(Team team, User judge);
 
     List<JudgeAssignment> findByJudgeAndEvent(User judge, Event event);
+
+    boolean existsByTeamAndJudge(Team team, User judge);
 }
