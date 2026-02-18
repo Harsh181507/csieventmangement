@@ -7,6 +7,7 @@ import com.harsh.csieventmangement.entity.Event;
 import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
+import com.harsh.csieventmangement.repository.EventJudgeRepository;
 import com.harsh.csieventmangement.repository.EventRepository;
 import com.harsh.csieventmangement.repository.TeamRepository;
 import com.harsh.csieventmangement.repository.UserRepository;
@@ -26,6 +27,7 @@ public class EventService {
     private final EventRepository eventRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final EventJudgeRepository eventJudgeRepository;
 
     // ✅ CREATE EVENT
     public EventResponse createEvent(CreateEventRequest request) {
@@ -156,6 +158,23 @@ public class EventService {
                 )
                 .toList();
     }
+
+    public List<JudgeEventResponse> getJudgeEvents(Long teamId) {
+        User judge = getCurrentUser();
+        if(judge.getRole() != Role.JUDGE) {
+            throw new ApiException("Only JUDGE can access", HttpStatus.FORBIDDEN);
+        }
+        return eventJudgeRepository.findByJudge(judge)
+                .stream().map(
+                        ej->JudgeEventResponse.builder()
+                                .id(ej.getEvent().getId())
+                                .title(ej.getEvent().getTitle())
+                                .description(ej.getEvent().getDescription())
+                                .scoringLocked(ej.getEvent().isScoringLocked())
+                                .build()
+                ).toList();
+    }
+
 
 
 }
