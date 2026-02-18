@@ -9,6 +9,7 @@ import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.EventRepository;
 import com.harsh.csieventmangement.repository.TeamRepository;
 import com.harsh.csieventmangement.repository.UserRepository;
+import com.harsh.csieventmangement.security.CustomUserDetails;
 import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -105,15 +106,21 @@ public class EventService {
     // ✅ GET CURRENT USER
     private User getCurrentUser() {
 
-        String email = SecurityContextHolder
+        Object principal = SecurityContextHolder
                 .getContext()
                 .getAuthentication()
-                .getName();
+                .getPrincipal();
 
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found", HttpStatus.NOT_FOUND));
+        if (principal instanceof CustomUserDetails customUserDetails) {
+            return customUserDetails.getUser();
+        }
+
+        throw new ApiException(
+                "Invalid authentication",
+                HttpStatus.UNAUTHORIZED
+        );
     }
+
 
     private EventResponse mapToResponse(Event event) {
 
