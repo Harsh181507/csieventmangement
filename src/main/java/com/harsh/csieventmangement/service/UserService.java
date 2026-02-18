@@ -1,6 +1,7 @@
 package com.harsh.csieventmangement.service;
 
 import com.harsh.csieventmangement.dto.request.UpdateUserRoleRequest;
+import com.harsh.csieventmangement.dto.response.UserResponse;
 import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.UserRepository;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -47,5 +50,15 @@ public class UserService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
+
+    public List<UserResponse> getAllJudges(){
+        return userRepository.findByRole(Role.JUDGE)
+                .stream()
+                .map(user->UserResponse.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .build()).toList();
     }
 }
