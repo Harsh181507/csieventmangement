@@ -3,6 +3,7 @@ package com.harsh.csieventmangement.security;
 import com.harsh.csieventmangement.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -19,8 +20,8 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(() ->
-                "ROLE_" + user.getRole().name()
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
         );
     }
 
@@ -31,7 +32,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public String getUsername() {
-        return user.getEmail();   // 👈 IMPORTANT
+        return user.getEmail();
     }
 
     @Override public boolean isAccountNonExpired() { return true; }
