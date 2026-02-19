@@ -2,6 +2,7 @@ package com.harsh.csieventmangement.controller;
 
 import com.harsh.csieventmangement.dto.request.CreateEventRequest;
 import com.harsh.csieventmangement.dto.response.EventResponse;
+import com.harsh.csieventmangement.dto.response.JudgeEventResponse;
 import com.harsh.csieventmangement.service.EventService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,4 +44,9 @@ public class EventController {
         );
     }
 
+    @GetMapping("/judge")
+    @PreAuthorize("hasRole('JUDGE')")
+    public ResponseEntity<List<JudgeEventResponse>> getJudgeEvents() {
+        return ResponseEntity.ok(eventService.getJudgeEvents());
+    }
 }

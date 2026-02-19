@@ -159,21 +159,6 @@ public class EventService {
                 .toList();
     }
 
-    public List<JudgeEventResponse> getJudgeEvents(Long teamId) {
-        User judge = getCurrentUser();
-        if(judge.getRole() != Role.JUDGE) {
-            throw new ApiException("Only JUDGE can access", HttpStatus.FORBIDDEN);
-        }
-        return eventJudgeRepository.findByJudge(judge)
-                .stream().map(
-                        ej->JudgeEventResponse.builder()
-                                .id(ej.getEvent().getId())
-                                .title(ej.getEvent().getTitle())
-                                .description(ej.getEvent().getDescription())
-                                .scoringLocked(ej.getEvent().isScoringLocked())
-                                .build()
-                ).toList();
-    }
 
 
 
