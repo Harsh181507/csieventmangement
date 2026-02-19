@@ -13,6 +13,7 @@ import com.harsh.csieventmangement.repository.TeamRepository;
 import com.harsh.csieventmangement.repository.UserRepository;
 import com.harsh.csieventmangement.security.CustomUserDetails;
 import com.harsh.csieventmangement.util.Role;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -139,6 +140,7 @@ public class EventService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public List<JudgeEventResponse> getJudgeEvents() {
 
         User judge = getCurrentUser();
