@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import com.harsh.csieventmangement.repository.JudgeAssignmentRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,20 +28,22 @@ public class ScoreService {
     private final JudgeAssignmentRepository judgeAssignmentRepository;
     private final EventJudgeRepository eventJudgeRepository;
 
+    @Transactional
     public String submitScore(SubmitScoreRequest request) {
 
         User currentUser = getCurrentUser();
 
-
         if (currentUser.getRole() != Role.JUDGE) {
-            throw new ApiException("Only JUDGE can submit scores", HttpStatus.FORBIDDEN);
+            throw new ApiException("Only JUDGE can submit scores",
+                    HttpStatus.FORBIDDEN);
         }
 
         Team team = teamRepository.findById(request.getTeamId())
                 .orElseThrow(() ->
-                        new ApiException("Team not found", HttpStatus.NOT_FOUND));
+                        new ApiException("Team not found",
+                                HttpStatus.NOT_FOUND));
 
-        // Check judge assignment
+        // Judge assigned to team?
         if (judgeAssignmentRepository
                 .findByTeamAndJudge(team, currentUser)
                 .isEmpty()) {
@@ -50,7 +53,8 @@ public class ScoreService {
                     HttpStatus.FORBIDDEN
             );
         }
-        // 🔐 Check judge assigned to event
+
+        // Judge assigned to event?
         if (eventJudgeRepository
                 .findByEventAndJudge(team.getEvent(), currentUser)
                 .isEmpty()) {
@@ -61,43 +65,57 @@ public class ScoreService {
             );
         }
 
-        JudgingCriteria criteria = criteriaRepository.findById(request.getCriteriaId())
-                .orElseThrow(() ->
-                        new ApiException("Criteria not found", HttpStatus.NOT_FOUND));
+        JudgingCriteria criteria =
+                criteriaRepository.findById(request.getCriteriaId())
+                        .orElseThrow(() ->
+                                new ApiException("Criteria not found",
+                                        HttpStatus.NOT_FOUND));
 
-        if (!team.getEvent().getId().equals(criteria.getEvent().getId())) {
-            throw new ApiException("Team and criteria belong to different events",
-                    HttpStatus.BAD_REQUEST);
+        if (!team.getEvent().getId()
+                .equals(criteria.getEvent().getId())) {
+
+            throw new ApiException(
+                    "Team and criteria belong to different events",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         if (criteria.getEvent().isScoringLocked()) {
-            throw new ApiException("Scoring is locked for this event",
-                    HttpStatus.BAD_REQUEST);
+            throw new ApiException(
+                    "Scoring is locked for this event",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         if (request.getScoreValue() > criteria.getMaxScore()) {
-            throw new ApiException("Score exceeds max allowed",
-                    HttpStatus.BAD_REQUEST);
+            throw new ApiException(
+                    "Score exceeds max allowed",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        if (scoreRepository.findByTeamAndJudgeAndCriteria(
-                team, currentUser, criteria).isPresent()) {
+        // 🔥 UPSERT LOGIC (update if exists)
+        Score score = scoreRepository
+                .findByTeamAndJudgeAndCriteria(
+                        team, currentUser, criteria)
+                .orElse(null);
 
-            throw new ApiException("Score already submitted",
-                    HttpStatus.CONFLICT);
+        if (score != null) {
+            score.setScoreValue(request.getScoreValue());
+        } else {
+            score = Score.builder()
+                    .team(team)
+                    .judge(currentUser)
+                    .criteria(criteria)
+                    .scoreValue(request.getScoreValue())
+                    .build();
         }
-
-        Score score = Score.builder()
-                .team(team)
-                .judge(currentUser)
-                .criteria(criteria)
-                .scoreValue(request.getScoreValue())
-                .build();
 
         scoreRepository.save(score);
 
-        return "Score submitted successfully";
+        return "Score saved successfully";
     }
+
 
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

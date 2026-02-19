@@ -6,7 +6,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "scores")
+@Table(
+        name = "scores",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"team_id", "judge_id", "criteria_id"}
+        )
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,15 +24,15 @@ public class Score {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "team_id")
+    @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "judge_id")
+    @JoinColumn(name = "judge_id", nullable = false)
     private User judge;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "criteria_id")
+    @JoinColumn(name = "criteria_id", nullable = false)
     private JudgingCriteria criteria;
 
     @Column(name = "score_value", nullable = false)

@@ -28,13 +28,7 @@ public class ScoreController {
         return ResponseEntity.ok(scoreService.submitScore(request));
     }
 
-    // 🔥 Event Leaderboard (Organizer + Judge can view)
-    @GetMapping("/event/{eventId}/summary")
-    public ResponseEntity<List<LeaderboardResponse>> getLeaderboard(
-            @PathVariable Long eventId
-    ) {
-        return ResponseEntity.ok(scoreService.getLeaderboard(eventId));
-    }
+
     @GetMapping("/judge")
     @PreAuthorize("hasRole('JUDGE')")
     public ResponseEntity<List<ScoreResponse>> getScoresByJudge() {
@@ -42,6 +36,16 @@ public class ScoreController {
                 scoreService.getScoresByJudge()
         );
     }
+    @GetMapping("/event/{eventId}/summary")
+    @PreAuthorize("hasAnyRole('ORGANIZER','JUDGE')")
+    public ResponseEntity<List<LeaderboardResponse>> getLeaderboard(
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(
+                scoreService.getLeaderboard(eventId)
+        );
+    }
+
 
 
 }
