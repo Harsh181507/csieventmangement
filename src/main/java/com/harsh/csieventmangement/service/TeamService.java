@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -123,6 +124,54 @@ public class TeamService {
                 .id(team.getId())
                 .teamName(team.getTeamName())
                 .eventId(team.getEvent().getId())
+                .leaderId(team.getLeader().getId())
+                .members(
+                        team.getMembers().stream()
+                                .map(User::getName)
+                                .toList()
+                )
                 .build();
     }
+
+
+    @Transactional(readOnly = true)
+    public TeamResponse getMyTeam(Long eventId) {
+
+        User currentUser = getCurrentUser();
+
+        Team team = teamRepository
+                .findByMembers_IdAndEvent_Id(currentUser.getId(), eventId)
+                .orElseThrow(() ->
+                        new ApiException("You are not part of any team",
+                                HttpStatus.NOT_FOUND));
+
+        return mapToResponse(team);
+    }
+    @Transactional
+    public String leaveTeam(Long teamId) {
+
+        User currentUser = getCurrentUser();
+
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() ->
+                        new ApiException("Team not found",
+                                HttpStatus.NOT_FOUND));
+
+        if (!team.getMembers().contains(currentUser)) {
+            throw new ApiException("You are not part of this team",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        if (team.getLeader().getId().equals(currentUser.getId())) {
+            throw new ApiException("Leader cannot leave team",
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        team.getMembers().remove(currentUser);
+        teamRepository.save(team);
+
+        return "Left team successfully";
+    }
+
+
 }

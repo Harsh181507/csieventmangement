@@ -47,4 +47,21 @@ public class TeamController {
                 teamService.joinTeam(teamId)
         );
     }
+    @GetMapping("/event/{eventId}/my")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<TeamResponse> getMyTeam(
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(teamService.getMyTeam(eventId));
+    }
+
+    @DeleteMapping("/{teamId}/leave")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<String> leaveTeam(
+            @PathVariable Long teamId
+    ) {
+        return ResponseEntity.ok(teamService.leaveTeam(teamId));
+    }
+
+
 }

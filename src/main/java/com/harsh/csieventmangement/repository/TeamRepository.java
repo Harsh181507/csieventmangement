@@ -28,4 +28,7 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     Optional<Team> findTeamByUserAndEvent(User user, Long eventId);
 
     List<Team> findByEventId(Long eventId);
+
+    Optional<Team> findByMembers_IdAndEvent_Id(Long userId, Long eventId);
+
 }
