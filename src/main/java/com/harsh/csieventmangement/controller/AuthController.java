@@ -16,7 +16,8 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // 🔹 Register API
+    
+
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @Valid @RequestBody RegisterRequest request
