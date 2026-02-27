@@ -16,7 +16,7 @@ public class TeamController {
 
     private final TeamService teamService;
 
-    // 🔹 Get Teams by Event
+    
     @GetMapping("/event/{eventId}")
     public ResponseEntity<List<TeamResponse>> getTeamsByEvent(
             @PathVariable Long eventId
