@@ -120,19 +120,29 @@ public class TeamService {
 
     private TeamResponse mapToResponse(Team team) {
 
+        Long leaderId = null;
+
+        if (team.getLeader() != null) {
+            leaderId = team.getLeader().getId();
+        }
+
+        List<String> members = List.of();
+
+        if (team.getMembers() != null) {
+            members = team.getMembers()
+                    .stream()
+                    .map(user -> user.getName() != null ? user.getName() : "Unknown")
+                    .toList();
+        }
+
         return TeamResponse.builder()
                 .id(team.getId())
                 .teamName(team.getTeamName())
                 .eventId(team.getEvent().getId())
-                .leaderId(team.getLeader().getId())
-                .members(
-                        team.getMembers().stream()
-                                .map(User::getName)
-                                .toList()
-                )
+                .leaderId(leaderId)
+                .members(members)
                 .build();
     }
-
 
     @Transactional(readOnly = true)
     public TeamResponse getMyTeam(Long eventId) {

@@ -5,6 +5,7 @@ import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,10 +22,12 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     boolean existsByTeamNameAndEvent(String teamName, Event event);
 
     @Query("""
-           SELECT t FROM Team t
-           JOIN t.members m
-           WHERE m = :user AND t.event.id = :eventId
-           """)
+    SELECT t FROM Team t
+    LEFT JOIN FETCH t.members
+    LEFT JOIN FETCH t.leader
+    WHERE t.event.id = :eventId
+""")
+    List<Team> findByEventIdWithMembers(@Param("eventId") Long eventId);
     Optional<Team> findTeamByUserAndEvent(User user, Long eventId);
 
     List<Team> findByEventId(Long eventId);
