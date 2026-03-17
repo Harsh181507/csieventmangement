@@ -15,7 +15,7 @@ public class EventRegistrationController {
 
     private final EventRegistrationService registrationService;
 
-    // 🔹 Register for event (Only STUDENT)
+    
     @PostMapping("/{eventId}/register")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<EventRegistrationResponse> registerForEvent(

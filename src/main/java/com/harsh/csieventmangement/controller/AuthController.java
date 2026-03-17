@@ -16,7 +16,8 @@ public class AuthController {
 
     private final AuthService authService;
 
-    // 🔹 Register API
+    
+
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @Valid @RequestBody RegisterRequest request
@@ -24,7 +25,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.register(request));
     }
 
-    // 🔹 Login API
+    
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @Valid @RequestBody LoginRequest request

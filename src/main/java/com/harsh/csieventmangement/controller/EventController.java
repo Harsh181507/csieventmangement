@@ -19,7 +19,7 @@ public class EventController {
 
     private final EventService eventService;
 
-    // 🔹 Create Event (Only ORGANIZER)
+    
     @PostMapping
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<EventResponse> createEvent(
