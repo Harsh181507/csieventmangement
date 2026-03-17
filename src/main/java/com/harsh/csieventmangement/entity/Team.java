@@ -43,6 +43,7 @@ public class Team {
     @ManyToMany
     @Builder.Default
     @JoinTable(
+
             name="team_members",
             joinColumns = @JoinColumn(name = "team_id"),
             inverseJoinColumns = @JoinColumn(name = "user_id")
