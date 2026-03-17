@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/teams")
@@ -34,7 +35,10 @@ public class TeamController {
             @RequestParam String teamName
     ) {
         return ResponseEntity.ok(
-                teamService.createTeam(eventId, teamName)
+                Map.of(
+                        "message",teamService.createTeam(eventId,teamName),
+                        "success",true
+                ).toString()
         );
     }
 
