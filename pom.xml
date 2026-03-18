@@ -5,10 +5,20 @@
 
 	<modelVersion>4.0.0</modelVersion>
 
+	<!--
+        Spring Boot parent POM — manages all dependency versions automatically.
+
+        FIX: Was "4.0.2" which does not exist. The latest stable release as of
+        early 2025 is 3.4.2. Using 3.4.x (not 4.x) because Spring Boot 4.x is
+        not yet released.
+
+        Reference — Spring Boot releases:
+        https://spring.io/projects/spring-boot#learn
+    -->
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.2</version>
+		<version>3.4.2</version>
 		<relativePath/>
 	</parent>
 
@@ -19,43 +29,62 @@
 	<description>CSI Event Management Backend</description>
 
 	<properties>
-		<java.version>17</java.version>
+		<!--
+            FIX: Aligned to Java 21 to match the Dockerfile which uses
+            eclipse-temurin:21. Previously pom.xml said 17 but Dockerfile
+            built with 21 — inconsistency causes subtle runtime issues.
+        -->
+		<java.version>21</java.version>
 	</properties>
 
 	<dependencies>
 
-		<!-- Web -->
+		<!-- ================================================================ -->
+		<!-- CORE WEB                                                          -->
+		<!-- ================================================================ -->
+
+		<!-- Spring MVC REST controllers, embedded Tomcat -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
-		<!-- JPA -->
+		<!-- ================================================================ -->
+		<!-- DATABASE                                                          -->
+		<!-- ================================================================ -->
+
+		<!-- JPA / Hibernate ORM + Spring Data repositories -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 
-		<!-- Security -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
-		</dependency>
-
-		<!-- Validation -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-validation</artifactId>
-		</dependency>
-
-		<!-- PostgreSQL -->
+		<!-- PostgreSQL JDBC driver (runtime-only — not needed at compile time) -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- JWT -->
+		<!-- ================================================================ -->
+		<!-- SECURITY                                                          -->
+		<!-- ================================================================ -->
+
+		<!-- Spring Security — authentication filters, method security -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<!-- ================================================================ -->
+		<!-- JWT                                                               -->
+		<!-- ================================================================ -->
+
+		<!--
+            JJWT (Java JWT) — token generation and validation.
+            Using 0.11.5 which is the last stable release on the jjwt-api split.
+            Reference: https://github.com/jwtk/jjwt
+        -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -74,33 +103,55 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Lombok -->
+		<!-- ================================================================ -->
+		<!-- VALIDATION                                                        -->
+		<!-- ================================================================ -->
+
+		<!-- Jakarta Bean Validation (@NotBlank, @Email, @Min, etc.) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+
+		<!-- ================================================================ -->
+		<!-- UTILITIES                                                         -->
+		<!-- ================================================================ -->
+
+		<!-- Lombok — @Getter, @Setter, @Builder, etc. (compile-time only) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
 
-		<!-- TEST -->
+		<!-- Jackson — JSON serialisation/deserialisation -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+
+		<!-- ================================================================ -->
+		<!-- TEST                                                              -->
+		<!-- ================================================================ -->
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-		</dependency>
-
-
 	</dependencies>
 
 	<build>
+		<!-- Output JAR name — must match render.yaml startCommand -->
 		<finalName>csieventmangement</finalName>
 
 		<plugins>
 
+			<!--
+                Maven Compiler Plugin — sets Java source/target version and
+                enables Lombok annotation processing at compile time.
+            -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -116,12 +167,22 @@
 				</configuration>
 			</plugin>
 
-			
+			<!--
+                Spring Boot Maven Plugin — packages the app as a fat/uber JAR
+                (includes all dependencies) so it can run standalone.
+            -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>com.harsh.csieventmangement.CsieventmangementApplication</mainClass>
+					<!-- Exclude Lombok from the final JAR — it's compile-time only -->
+					<excludes>
+						<exclude>
+							<groupId>org.projectlombok</groupId>
+							<artifactId>lombok</artifactId>
+						</exclude>
+					</excludes>
 				</configuration>
 			</plugin>
 
