@@ -13,11 +13,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+
 
     public String updateUserRole(UpdateUserRoleRequest request) {
 
@@ -32,33 +34,52 @@ public class UserService {
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
 
         if (user.getRole() == Role.ORGANIZER) {
-            throw new ApiException("Cannot modify ORGANIZER role", HttpStatus.BAD_REQUEST);
+            throw new ApiException(
+                    "Cannot modify another ORGANIZER's role",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         user.setRole(request.getRole());
         userRepository.save(user);
 
-        return "User role updated successfully";
+        return "User role updated to " + request.getRole();
+    }
+
+
+    public List<UserResponse> getAllJudges() {
+        return userRepository.findByRole(Role.JUDGE)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+
+    public List<UserResponse> getAllNonOrganizerUsers() {
+        return userRepository.findAll()
+                .stream()
+                .filter(user -> user.getRole() != Role.ORGANIZER)
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+
+    private UserResponse mapToResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .role(user.getRole())
+                .build();
     }
 
     private User getCurrentUser() {
-        String email = SecurityContextHolder
-                .getContext()
+        String email = SecurityContextHolder.getContext()
                 .getAuthentication()
                 .getName();
 
         return userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new ApiException("User not found", HttpStatus.NOT_FOUND));
-    }
-
-    public List<UserResponse> getAllJudges(){
-        return userRepository.findByRole(Role.JUDGE)
-                .stream()
-                .map(user->UserResponse.builder()
-                        .id(user.getId())
-                        .name(user.getName())
-                        .email(user.getEmail())
-                        .build()).toList();
     }
 }

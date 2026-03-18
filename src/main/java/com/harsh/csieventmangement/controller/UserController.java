@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -18,21 +19,26 @@ public class UserController {
 
     private final UserService userService;
 
+
     @PutMapping("/role")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<String> updateUserRole(
             @Valid @RequestBody UpdateUserRoleRequest request
     ) {
-        return ResponseEntity.ok(
-                userService.updateUserRole(request)
-        );
+        return ResponseEntity.ok(userService.updateUserRole(request));
     }
+
 
     @GetMapping("/judges")
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<List<UserResponse>> getAllJudges() {
-        return ResponseEntity.ok(
-                userService.getAllJudges()
-        );
+        return ResponseEntity.ok(userService.getAllJudges());
+    }
+
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<List<UserResponse>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllNonOrganizerUsers());
     }
 }
