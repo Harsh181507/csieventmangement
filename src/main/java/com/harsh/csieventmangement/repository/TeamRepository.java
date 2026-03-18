@@ -14,14 +14,20 @@ import java.util.Optional;
 public interface TeamRepository extends JpaRepository<Team, Long> {
 
 
+
     List<Team> findByEvent(Event event);
 
-
     List<Team> findByEventId(Long eventId);
+
 
 
     Optional<Team> findByLeader(User leader);
 
 
+    Optional<Team> findByJoinCode(String joinCode);
+
+
     boolean existsByTeamNameAndEvent(String teamName, Event event);
+
+    boolean existsByJoinCode(String joinCode);
 }

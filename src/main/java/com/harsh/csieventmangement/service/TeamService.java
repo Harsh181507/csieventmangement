@@ -18,18 +18,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Business logic for all team operations.
  *
- * <p><strong>Why TeamMemberRepository instead of team.getMembers():</strong>
- * The {@code Team} entity previously had a {@code @ManyToMany Set<User> members}
- * field. This was removed because the {@code team_members} DB table has its own
- * {@code id} column, which is incompatible with JPA's pure join table requirement
- * for {@code @ManyToMany}.
- *
- * <p>All membership reads and writes now go through {@link TeamMemberRepository}
- * using the {@link TeamMember} entity as the single source of truth.
+ * <p><strong>Join Code feature:</strong>
+ * When a team is created, an 8-character unique uppercase code is generated
+ * using the first 8 characters of a UUID (e.g. "A3F9B2C1"). This code is
+ * stored on the team and returned in the API response. The leader shares
+ * this code with teammates who call POST /teams/join-by-code to join.
  *
  * <p><strong>File:</strong>
  * {@code src/main/java/com/harsh/csieventmangement/service/TeamService.java}
@@ -41,18 +39,19 @@ public class TeamService {
     private final TeamRepository       teamRepository;
     private final EventRepository      eventRepository;
     private final UserRepository       userRepository;
-    private final TeamMemberRepository teamMemberRepository; // ← replaces team.getMembers()
+    private final TeamMemberRepository teamMemberRepository;
 
     // =========================================================================
     // CREATE TEAM
     // =========================================================================
 
     /**
-     * Creates a new team for the given event. The calling student is
-     * automatically set as leader and added as the first member.
+     * Creates a new team for the given event.
+     * The calling student is set as leader and added as the first member.
+     * A unique 8-character join code is generated automatically.
      */
     @Transactional
-    public String createTeam(Long eventId, String teamName) {
+    public TeamResponse createTeam(Long eventId, String teamName) {
 
         User currentUser = getCurrentUser();
 
@@ -71,9 +70,6 @@ public class TeamService {
             );
         }
 
-        // FIX: was teamRepository.findTeamByUserAndEvent() — that method was
-        // removed from TeamRepository because it navigated through the deleted
-        // @ManyToMany members field. Now we check via TeamMemberRepository.
         if (teamMemberRepository.existsByUserAndTeam_Event(currentUser, event)) {
             throw new ApiException(
                     "You are already in a team for this event",
@@ -81,33 +77,103 @@ public class TeamService {
             );
         }
 
-        // Create and save the team
+        // Generate a unique 8-character uppercase join code
+        String joinCode = generateUniqueJoinCode();
+
         Team team = Team.builder()
                 .teamName(teamName)
                 .event(event)
                 .leader(currentUser)
+                .joinCode(joinCode)
                 .build();
 
         Team savedTeam = teamRepository.save(team);
 
-        // FIX: was team.getMembers().add(user) — members Set was removed from Team.
-        // Now add the creator as first member via TeamMember entity.
-        TeamMember leaderMembership = TeamMember.builder()
-                .team(savedTeam)
-                .user(currentUser)
-                .build();
+        // Add creator as first member
+        teamMemberRepository.save(
+                TeamMember.builder()
+                        .team(savedTeam)
+                        .user(currentUser)
+                        .build()
+        );
 
-        teamMemberRepository.save(leaderMembership);
-
-        return "Team created successfully";
+        return mapToResponse(savedTeam);
     }
 
     // =========================================================================
-    // JOIN TEAM
+    // JOIN TEAM BY CODE
     // =========================================================================
 
     /**
-     * Adds the current student to an existing team.
+     * Adds the current student to a team using the team's join code.
+     *
+     * <p>This is the primary way teammates join a team. The leader shares
+     * the code (shown on their team card) via WhatsApp or verbally, and
+     * teammates enter it here.
+     *
+     * @param code the join code (case-insensitive, e.g. "a3f9b2c1" or "A3F9B2C1")
+     * @return a response containing the team the student just joined
+     */
+    @Transactional
+    public TeamResponse joinTeamByCode(String code) {
+
+        User currentUser = getCurrentUser();
+
+        if (currentUser.getRole() != Role.STUDENT) {
+            throw new ApiException("Only STUDENT can join teams", HttpStatus.FORBIDDEN);
+        }
+
+        // Uppercase the input so codes are case-insensitive
+        Team team = teamRepository.findByJoinCode(code.toUpperCase().trim())
+                .orElseThrow(() ->
+                        new ApiException(
+                                "Invalid join code — double check and try again",
+                                HttpStatus.NOT_FOUND
+                        ));
+
+        Event event = team.getEvent();
+
+        if (event.isScoringLocked()) {
+            throw new ApiException(
+                    "Cannot join team — scoring is locked for this event",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // Guard: student already in a team for this event
+        if (teamMemberRepository.existsByUserAndTeam_Event(currentUser, event)) {
+            throw new ApiException(
+                    "You are already in a team for this event",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // Guard: team is full
+        long currentCount = teamMemberRepository.countByTeam(team);
+        if (currentCount >= event.getMaxTeamSize()) {
+            throw new ApiException(
+                    "Team is full — maximum " + event.getMaxTeamSize() + " members allowed",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+
+        teamMemberRepository.save(
+                TeamMember.builder()
+                        .team(team)
+                        .user(currentUser)
+                        .build()
+        );
+
+        return mapToResponse(team);
+    }
+
+    // =========================================================================
+    // JOIN TEAM BY ID (kept for backward compatibility)
+    // =========================================================================
+
+    /**
+     * Adds the current student to a team by team ID.
+     * Used by the existing "Join" button in the teams list.
      */
     @Transactional
     public String joinTeam(Long teamId) {
@@ -131,8 +197,6 @@ public class TeamService {
             );
         }
 
-        // FIX: same as above — use TeamMemberRepository instead of
-        // teamRepository.findTeamByUserAndEvent()
         if (teamMemberRepository.existsByUserAndTeam_Event(currentUser, event)) {
             throw new ApiException(
                     "You are already in a team for this event",
@@ -140,23 +204,20 @@ public class TeamService {
             );
         }
 
-        // FIX: was team.getMembers().size() — members Set removed from Team.
-        // Use DB count via TeamMemberRepository instead.
-        long currentMemberCount = teamMemberRepository.countByTeam(team);
-        if (currentMemberCount >= event.getMaxTeamSize()) {
+        long currentCount = teamMemberRepository.countByTeam(team);
+        if (currentCount >= event.getMaxTeamSize()) {
             throw new ApiException(
                     "Team is full — maximum " + event.getMaxTeamSize() + " members allowed",
                     HttpStatus.BAD_REQUEST
             );
         }
 
-        // Add new member via TeamMember entity
-        TeamMember membership = TeamMember.builder()
-                .team(team)
-                .user(currentUser)
-                .build();
-
-        teamMemberRepository.save(membership);
+        teamMemberRepository.save(
+                TeamMember.builder()
+                        .team(team)
+                        .user(currentUser)
+                        .build()
+        );
 
         return "Joined team successfully";
     }
@@ -165,10 +226,6 @@ public class TeamService {
     // LEAVE TEAM
     // =========================================================================
 
-    /**
-     * Removes the current student from a team.
-     * The team leader cannot leave.
-     */
     @Transactional
     public String leaveTeam(Long teamId) {
 
@@ -178,8 +235,6 @@ public class TeamService {
                 .orElseThrow(() ->
                         new ApiException("Team not found", HttpStatus.NOT_FOUND));
 
-        // FIX: was team.getMembers().contains(currentUser) — members Set removed.
-        // Look up the membership record directly instead.
         TeamMember membership = teamMemberRepository
                 .findByTeamAndUser(team, currentUser)
                 .orElseThrow(() ->
@@ -196,19 +251,15 @@ public class TeamService {
             );
         }
 
-        // FIX: was team.getMembers().remove() — now delete the TeamMember record
         teamMemberRepository.delete(membership);
 
         return "Left team successfully";
     }
 
     // =========================================================================
-    // GET TEAMS BY EVENT
+    // QUERIES
     // =========================================================================
 
-    /**
-     * Returns all teams for a given event with their member names.
-     */
     @Transactional(readOnly = true)
     public List<TeamResponse> getTeamsByEvent(Long eventId) {
         return teamRepository.findByEventId(eventId)
@@ -217,21 +268,11 @@ public class TeamService {
                 .toList();
     }
 
-    // =========================================================================
-    // GET MY TEAM
-    // =========================================================================
-
-    /**
-     * Returns the team the current student belongs to for a given event.
-     */
     @Transactional(readOnly = true)
     public TeamResponse getMyTeam(Long eventId) {
 
         User currentUser = getCurrentUser();
 
-        // FIX: was teamRepository.findByMembers_IdAndEvent_Id() — that method
-        // navigated through the deleted @ManyToMany members field.
-        // Now find the TeamMember record and get the team from it.
         TeamMember membership = teamMemberRepository
                 .findByUserAndTeam_Event_Id(currentUser, eventId)
                 .orElseThrow(() ->
@@ -248,13 +289,36 @@ public class TeamService {
     // =========================================================================
 
     /**
+     * Generates a unique 8-character uppercase alphanumeric join code.
+     * Uses the first 8 characters of a random UUID (without hyphens).
+     * Retries if the generated code already exists in the DB (extremely rare).
+     *
+     * Example output: "A3F9B2C1"
+     */
+    private String generateUniqueJoinCode() {
+        String code;
+        int maxAttempts = 10;
+
+        do {
+            // UUID gives us a random string like "a3f9b2c1-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+            // Take first 8 chars after removing hyphens and uppercase it
+            code = UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .substring(0, 8)
+                    .toUpperCase();
+
+            maxAttempts--;
+        } while (teamRepository.existsByJoinCode(code) && maxAttempts > 0);
+
+        return code;
+    }
+
+    /**
      * Maps a {@link Team} entity to a {@link TeamResponse} DTO.
-     * Fetches member names via {@link TeamMemberRepository}.
      */
     private TeamResponse mapToResponse(Team team) {
 
-        // FIX: was team.getMembers().stream()... — members Set removed from Team.
-        // Fetch member names via TeamMemberRepository instead.
         List<String> memberNames = teamMemberRepository.findByTeam(team)
                 .stream()
                 .map(tm -> tm.getUser().getName() != null
@@ -272,12 +336,10 @@ public class TeamService {
                 .leaderId(leaderId)
                 .leaderName(leaderName)
                 .members(memberNames)
+                .joinCode(team.getJoinCode())
                 .build();
     }
 
-    /**
-     * Gets the currently authenticated user from the Spring Security context.
-     */
     private User getCurrentUser() {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()

@@ -8,7 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
+
 
 @RestController
 @RequestMapping("/teams")
@@ -17,40 +17,42 @@ public class TeamController {
 
     private final TeamService teamService;
 
-    
+
     @GetMapping("/event/{eventId}")
     public ResponseEntity<List<TeamResponse>> getTeamsByEvent(
             @PathVariable Long eventId
     ) {
-        return ResponseEntity.ok(
-                teamService.getTeamsByEvent(eventId)
-        );
+        return ResponseEntity.ok(teamService.getTeamsByEvent(eventId));
     }
 
-    // 🔹 Create Team (Only STUDENT)
+
     @PostMapping("/{eventId}")
     @PreAuthorize("hasRole('STUDENT')")
-    public ResponseEntity<String> createTeam(
+    public ResponseEntity<TeamResponse> createTeam(
             @PathVariable Long eventId,
             @RequestParam String teamName
     ) {
-        return ResponseEntity.ok(
-                Map.of(
-                        "message",teamService.createTeam(eventId,teamName),
-                        "success",true
-                ).toString()
-        );
+        return ResponseEntity.ok(teamService.createTeam(eventId, teamName));
     }
+
+    @PostMapping("/join-by-code")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<TeamResponse> joinByCode(
+            @RequestParam String code
+    ) {
+        return ResponseEntity.ok(teamService.joinTeamByCode(code));
+    }
+
 
     @PostMapping("/join/{teamId}")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<String> joinTeam(
             @PathVariable Long teamId
     ) {
-        return ResponseEntity.ok(
-                teamService.joinTeam(teamId)
-        );
+        return ResponseEntity.ok(teamService.joinTeam(teamId));
     }
+
+
     @GetMapping("/event/{eventId}/my")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<TeamResponse> getMyTeam(
@@ -59,6 +61,7 @@ public class TeamController {
         return ResponseEntity.ok(teamService.getMyTeam(eventId));
     }
 
+
     @DeleteMapping("/{teamId}/leave")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<String> leaveTeam(
@@ -66,6 +69,4 @@ public class TeamController {
     ) {
         return ResponseEntity.ok(teamService.leaveTeam(teamId));
     }
-
-
 }
