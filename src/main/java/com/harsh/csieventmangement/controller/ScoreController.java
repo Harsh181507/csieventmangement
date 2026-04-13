@@ -19,7 +19,7 @@ public class ScoreController {
 
     private final ScoreService scoreService;
 
-    // 🔹 Submit Score (Only JUDGE)
+    
     @PostMapping
     @PreAuthorize("hasRole('JUDGE')")
     public ResponseEntity<String> submitScore(
