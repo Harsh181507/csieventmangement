@@ -3,6 +3,7 @@ package com.harsh.csieventmangement.dto.request;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 @Getter
 @Setter
@@ -14,6 +15,6 @@ public class AssignJudgeRequest {
     @NotNull
     private Long judgeId;
 
-    // optional (if assigning to team)
-    private Long teamId;
+    // Optional batch assignment
+    private List<Long> teamIds;
 }

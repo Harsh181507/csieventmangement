@@ -45,51 +45,41 @@ public class JudgeAssignmentService {
                     HttpStatus.BAD_REQUEST);
         }
 
-        // 🔥 Assign judge to event
+        // Assign judge to the event globally
         if (!eventJudgeRepository.existsByEventAndJudge(event, judge)) {
-
             EventJudge eventJudge = EventJudge.builder()
                     .event(event)
                     .judge(judge)
                     .build();
-
             eventJudgeRepository.save(eventJudge);
         }
 
-        // 🔥 Optional team assignment
-        if (request.getTeamId() != null) {
+        // Batch team assignment
+        if (request.getTeamIds() != null && !request.getTeamIds().isEmpty()) {
+            for (Long teamId : request.getTeamIds()) {
+                Team team = teamRepository.findById(teamId)
+                        .orElseThrow(() -> new ApiException("Team not found", HttpStatus.NOT_FOUND));
 
-            Team team = teamRepository.findById(request.getTeamId())
-                    .orElseThrow(() ->
-                            new ApiException("Team not found",
-                                    HttpStatus.NOT_FOUND));
-
-            if (!judgeAssignmentRepository.existsByTeamAndJudge(team, judge)) {
-
-                JudgeAssignment assignment = JudgeAssignment.builder()
-                        .event(event)
-                        .team(team)
-                        .judge(judge)
-                        .build();
-
-                judgeAssignmentRepository.save(assignment);
+                if (!judgeAssignmentRepository.existsByTeamAndJudge(team, judge)) {
+                    JudgeAssignment assignment = JudgeAssignment.builder()
+                            .event(event)
+                            .team(team)
+                            .judge(judge)
+                            .build();
+                    judgeAssignmentRepository.save(assignment);
+                }
             }
+            return "Judge assigned successfully to " + request.getTeamIds().size() + " teams";
         }
 
-        return "Judge assigned successfully";
+        return "Judge assigned to event successfully";
     }
 
     private User getCurrentUser() {
-
-        Object principal = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
-
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         if (principal instanceof CustomUserDetails customUserDetails) {
             return customUserDetails.getUser();
         }
-
         throw new ApiException("Unauthorized", HttpStatus.UNAUTHORIZED);
     }
 }
