@@ -18,3 +18,7 @@ public class AssignJudgeRequest {
     // Optional batch assignment
     private List<Long> teamIds;
 }
+
+
+
+//check 1
