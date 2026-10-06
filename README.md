@@ -265,6 +265,8 @@ Run these once in Supabase (**SQL Editor → New query → Run**). Both are safe
 - `db/001_indexes.sql` — indexes on foreign keys used by every screen.
 - `db/002_team_members_per_event.sql` — checks for an old unique constraint that stops a student
   joining teams in more than one event, with instructions to drop it.
+- `db/003_drop_duplicate_indexes.sql` — removes unique constraints/indexes that were created more
+  than once, and collects table statistics. (Already applied to the production database.)
 
 ### Google Play pages
 

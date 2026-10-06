@@ -56,8 +56,17 @@ public class UserService {
             );
         }
 
+        Role previousRole = user.getRole();
+
         user.setRole(request.getRole());
         userRepository.save(user);
+
+        // Someone who is no longer a judge should not stay assigned to events.
+        // Scores they already gave are kept.
+        if (previousRole == Role.JUDGE && request.getRole() != Role.JUDGE) {
+            judgeAssignmentRepository.deleteByJudge(user);
+            eventJudgeRepository.deleteByJudge(user);
+        }
 
         // The user's next request must see the new role
         userDetailsService.evict(user.getEmail());
