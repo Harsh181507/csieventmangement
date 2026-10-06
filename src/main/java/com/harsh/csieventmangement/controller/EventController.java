@@ -44,6 +44,14 @@ public class EventController {
         );
     }
 
+    // 🔹 One event (Any authenticated user)
+    @GetMapping("/{eventId}")
+    public ResponseEntity<EventResponse> getEvent(
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(eventService.getEvent(eventId));
+    }
+
     // 🔓 Unlock Scoring (Only ORGANIZER)
     @PostMapping("/{eventId}/unlock")
     @PreAuthorize("hasRole('ORGANIZER')")

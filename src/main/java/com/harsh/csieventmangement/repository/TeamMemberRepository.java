@@ -35,6 +35,16 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     List<TeamMember> findByUser(User user);
 
+    // A user's memberships with team and leader loaded in the same query
+    @Query("""
+        SELECT tm FROM TeamMember tm
+        JOIN FETCH tm.team t
+        LEFT JOIN FETCH t.leader
+        WHERE tm.user = :user
+        ORDER BY t.id DESC
+    """)
+    List<TeamMember> findByUserWithTeam(@Param("user") User user);
+
     // Members of many teams with their user loaded in one query
     @Query("""
         SELECT tm FROM TeamMember tm

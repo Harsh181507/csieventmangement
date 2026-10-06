@@ -109,8 +109,10 @@ public class UserService {
         User user = userRepository.findById(CurrentUser.get().getId())
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
 
+        // 400, not 401: the session is fine, only the confirmation was wrong.
+        // (A 401 makes the app treat the session as expired and log out.)
         if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new ApiException("Incorrect password", HttpStatus.UNAUTHORIZED);
+            throw new ApiException("Incorrect password", HttpStatus.BAD_REQUEST);
         }
 
         for (Team team : teamRepository.findByLeader(user)) {

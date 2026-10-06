@@ -239,6 +239,20 @@ public class TeamService {
         return mapToResponses(List.of(membership.getTeam()), currentUser).get(0);
     }
 
+    /** Every team the current user belongs to, newest first. */
+    @Transactional(readOnly = true)
+    public List<TeamResponse> getMyTeams() {
+
+        User currentUser = CurrentUser.get();
+
+        List<Team> teams = teamMemberRepository.findByUserWithTeam(currentUser)
+                .stream()
+                .map(TeamMember::getTeam)
+                .toList();
+
+        return mapToResponses(teams, currentUser);
+    }
+
     /**
      * Maps teams to responses with 2 queries in total (members + their users),
      * instead of several queries per team.

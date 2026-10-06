@@ -88,6 +88,7 @@ All endpoints are prefixed relative to the app root. `/auth/**`, `/`, `/health` 
 |---|---|---|
 | POST | `/events` | Create an event (organizer) |
 | GET | `/events` | List all events, newest first |
+| GET | `/events/{eventId}` | Get one event |
 | POST | `/events/{eventId}/lock` | Lock scoring for an event (organizer) |
 | POST | `/events/{eventId}/unlock` | Reopen scoring (organizer) |
 | DELETE | `/events/{eventId}` | Delete an event with its teams, criteria and scores (organizer) |
@@ -100,6 +101,7 @@ All endpoints are prefixed relative to the app root. `/auth/**`, `/`, `/health` 
 | POST | `/teams/{eventId}?teamName=` | Create a team for an event |
 | GET | `/teams/event/{eventId}` | List teams for an event |
 | GET | `/teams/event/{eventId}/my` | Get the current user's team for an event |
+| GET | `/teams/my` | All of the current student's teams, across events |
 | POST | `/teams/join-by-code?code=` | Join a team using its join code |
 | POST | `/teams/join/{teamId}` | Join a team by ID |
 | DELETE | `/teams/{teamId}/leave` | Leave a team |

@@ -88,6 +88,15 @@ public class EventService {
                 .toList());
     }
 
+    /** One event, served from the cached list. */
+    @Transactional(readOnly = true)
+    public EventResponse getEvent(Long eventId) {
+        return getAllEvents().stream()
+                .filter(e -> e.getId().equals(eventId))
+                .findFirst()
+                .orElseThrow(() -> new ApiException("Event not found", HttpStatus.NOT_FOUND));
+    }
+
     // =========================================================================
     // LOCK / UNLOCK SCORING
     // =========================================================================

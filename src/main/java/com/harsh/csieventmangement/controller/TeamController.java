@@ -53,6 +53,14 @@ public class TeamController {
     }
 
 
+    // Every team the current student is in, across all events
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<List<TeamResponse>> getMyTeams() {
+        return ResponseEntity.ok(teamService.getMyTeams());
+    }
+
+
     @GetMapping("/event/{eventId}/my")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<TeamResponse> getMyTeam(
