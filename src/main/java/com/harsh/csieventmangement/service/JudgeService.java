@@ -6,14 +6,16 @@ import com.harsh.csieventmangement.entity.JudgeAssignment;
 import com.harsh.csieventmangement.entity.Team;
 import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
+import com.harsh.csieventmangement.repository.EventJudgeRepository;
 import com.harsh.csieventmangement.repository.EventRepository;
 import com.harsh.csieventmangement.repository.JudgeAssignmentRepository;
-import com.harsh.csieventmangement.repository.UserRepository;
+import com.harsh.csieventmangement.repository.TeamRepository;
+import com.harsh.csieventmangement.security.CurrentUser;
 import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -22,12 +24,19 @@ import java.util.List;
 public class JudgeService {
 
     private final JudgeAssignmentRepository judgeAssignmentRepository;
+    private final EventJudgeRepository eventJudgeRepository;
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
+    private final TeamRepository teamRepository;
+    private final TeamService teamService;
 
+    /**
+     * Teams the current judge should score in an event: the teams the
+     * organizer picked for them, or every team when none were picked.
+     */
+    @Transactional(readOnly = true)
     public List<TeamResponse> getAssignedTeams(Long eventId) {
 
-        User judge = getCurrentUser();
+        User judge = CurrentUser.get();
 
         if (judge.getRole() != Role.JUDGE) {
             throw new ApiException(
@@ -41,31 +50,23 @@ public class JudgeService {
                         new ApiException("Event not found", HttpStatus.NOT_FOUND)
                 );
 
-        List<JudgeAssignment> assignments =
-                judgeAssignmentRepository.findByJudgeAndEvent(judge, event);
+        if (!eventJudgeRepository.existsByEventAndJudge(event, judge)) {
+            throw new ApiException(
+                    "You are not assigned to judge this event",
+                    HttpStatus.FORBIDDEN
+            );
+        }
 
-        return assignments.stream()
-                .map(assignment -> {
-                    Team team = assignment.getTeam();
-                    return TeamResponse.builder()
-                            .id(team.getId())
-                            .teamName(team.getTeamName())
-                            .eventId(event.getId())
-                            .build();
-                })
+        List<Team> teams = judgeAssignmentRepository
+                .findByJudgeAndEventWithTeam(judge, event)
+                .stream()
+                .map(JudgeAssignment::getTeam)
                 .toList();
-    }
 
-    private User getCurrentUser() {
+        if (teams.isEmpty()) {
+            teams = teamRepository.findByEventIdWithLeader(eventId);
+        }
 
-        String email = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
-
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found", HttpStatus.NOT_FOUND)
-                );
+        return teamService.mapToResponses(teams, judge);
     }
 }

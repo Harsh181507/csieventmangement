@@ -7,6 +7,7 @@ import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +20,7 @@ public class AssignmentService {
     private final JudgeAssignmentRepository judgeAssignmentRepository;
 
     // ✅ Assign Judge To Event
+    @Transactional
     public String assignJudgeToEvent(Long eventId, Long judgeId) {
 
         Event event = eventRepository.findById(eventId)
@@ -49,6 +51,7 @@ public class AssignmentService {
     }
 
     // ✅ Assign Judge To Team
+    @Transactional
     public String assignJudgeToTeam(Long teamId, Long judgeId) {
 
         Team team = teamRepository.findById(teamId)

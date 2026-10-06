@@ -7,12 +7,12 @@ import com.harsh.csieventmangement.entity.User;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.EventRegistrationRepository;
 import com.harsh.csieventmangement.repository.EventRepository;
-import com.harsh.csieventmangement.repository.UserRepository;
+import com.harsh.csieventmangement.security.CurrentUser;
 import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -22,20 +22,11 @@ public class EventRegistrationService {
 
     private final EventRegistrationRepository registrationRepository;
     private final EventRepository eventRepository;
-    private final UserRepository userRepository;
 
-    public EventRegistrationResponse registerForEvent(
-            Long eventId,
-            Authentication authentication
-    ) {
+    @Transactional
+    public EventRegistrationResponse registerForEvent(Long eventId) {
 
-        String email = authentication.getName();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ApiException(
-                        "User not found",
-                        HttpStatus.NOT_FOUND
-                ));
+        User user = CurrentUser.get();
 
         // 🔒 Only STUDENT can register
         if (user.getRole() != Role.STUDENT) {

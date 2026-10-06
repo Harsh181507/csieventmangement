@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "team_members")
+@Table(name = "team_members",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"team_id", "user_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -16,11 +17,13 @@ public class TeamMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "team_id")
     private Team team;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "user_id", unique = true)
+    // One team per user per event is enforced in TeamService (a user may be
+    // in different teams for different events, so user_id is not unique).
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id")
     private User user;
 }

@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Locale;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -23,7 +25,9 @@ public class AuthService {
     // 🔹 Register (ALWAYS STUDENT)
     public AuthResponse register(RegisterRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        String email = normalizeEmail(request.getEmail());
+
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new ApiException(
                     "Email already registered",
                     HttpStatus.CONFLICT
@@ -31,29 +35,21 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
+                .name(request.getName().trim())
+                .email(email)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.STUDENT)   // 🔥 FIXED
                 .build();
 
         userRepository.save(user);
 
-        String token = jwtUtil.generateToken(user);
-
-        return AuthResponse.builder()
-                .token(token)
-                .userId(user.getId())
-                .name(user.getName())
-                .email(user.getEmail())
-                .role(user.getRole())
-                .build();
+        return toAuthResponse(user);
     }
 
     // 🔹 Login
     public AuthResponse login(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.getEmail()))
                 .orElseThrow(() -> new ApiException(
                         "Invalid email or password",
                         HttpStatus.UNAUTHORIZED
@@ -66,14 +62,20 @@ public class AuthService {
             );
         }
 
-        String token = jwtUtil.generateToken(user);
+        return toAuthResponse(user);
+    }
 
+    private AuthResponse toAuthResponse(User user) {
         return AuthResponse.builder()
-                .token(token)
+                .token(jwtUtil.generateToken(user))
                 .userId(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
                 .build();
+    }
+
+    private static String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

@@ -1,5 +1,6 @@
 package com.harsh.csieventmangement.controller;
 
+import com.harsh.csieventmangement.dto.request.DeleteAccountRequest;
 import com.harsh.csieventmangement.dto.request.UpdateUserRoleRequest;
 import com.harsh.csieventmangement.dto.response.UserResponse;
 import com.harsh.csieventmangement.service.UserService;
@@ -40,5 +41,21 @@ public class UserController {
     @PreAuthorize("hasRole('ORGANIZER')")
     public ResponseEntity<List<UserResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllNonOrganizerUsers());
+    }
+
+
+    // Profile of the logged-in user (any role)
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> getMe() {
+        return ResponseEntity.ok(userService.getMe());
+    }
+
+
+    // Permanently deletes the logged-in user's account (any role)
+    @PostMapping("/me/delete")
+    public ResponseEntity<String> deleteMe(
+            @Valid @RequestBody DeleteAccountRequest request
+    ) {
+        return ResponseEntity.ok(userService.deleteMyAccount(request.getPassword()));
     }
 }

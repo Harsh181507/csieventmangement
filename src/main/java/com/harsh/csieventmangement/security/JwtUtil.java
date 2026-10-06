@@ -5,15 +5,15 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
-@RequiredArgsConstructor
 public class JwtUtil {
 
     @Value("${jwt.secret}")
@@ -22,8 +22,16 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+    // Built once at startup instead of on every request
+    private Key signingKey;
+
+    @PostConstruct
+    void init() {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be set and at least 32 characters long");
+        }
+        signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     // 🔹 Generate Token
@@ -35,30 +43,24 @@ public class JwtUtil {
                 .claim("userId", user.getId())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // 🔹 Extract Email
-    public String extractUsername(String token) {
+    /**
+     * Parses and validates the token (signature + expiry) in a single pass.
+     *
+     * @return the email (subject) stored in the token
+     * @throws io.jsonwebtoken.JwtException if the token is invalid or expired
+     */
+    public String validateAndGetEmail(String token) {
         return extractAllClaims(token).getSubject();
     }
 
-    // 🔹 Validate Token
-    public boolean isTokenValid(String token, String email) {
-        final String username = extractUsername(token);
-        return (username.equals(email) && !isTokenExpired(token));
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractAllClaims(token)
-                .getExpiration()
-                .before(new Date());
-    }
-
     private Claims extractAllClaims(String token) {
+        // parseClaimsJws rejects expired tokens with ExpiredJwtException
         return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+                .setSigningKey(signingKey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();

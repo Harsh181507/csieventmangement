@@ -5,7 +5,6 @@ import com.harsh.csieventmangement.service.EventRegistrationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -19,11 +18,10 @@ public class EventRegistrationController {
     @PostMapping("/{eventId}/register")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<EventRegistrationResponse> registerForEvent(
-            @PathVariable Long eventId,
-            Authentication authentication
+            @PathVariable Long eventId
     ) {
         return ResponseEntity.ok(
-                registrationService.registerForEvent(eventId, authentication)
+                registrationService.registerForEvent(eventId)
         );
     }
 }

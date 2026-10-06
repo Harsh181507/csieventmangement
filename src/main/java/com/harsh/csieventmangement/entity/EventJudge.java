@@ -17,12 +17,12 @@ public class EventJudge {
     private Long id;
 
     // 🔹 Event
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
     // 🔹 Judge (User with role JUDGE)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "judge_id", nullable = false)
     private User judge;
 }

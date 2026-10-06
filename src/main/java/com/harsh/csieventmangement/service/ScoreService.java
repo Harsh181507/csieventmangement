@@ -1,20 +1,21 @@
 package com.harsh.csieventmangement.service;
 
+import com.harsh.csieventmangement.dto.request.BatchScoreRequest;
 import com.harsh.csieventmangement.dto.request.SubmitScoreRequest;
 import com.harsh.csieventmangement.dto.response.LeaderboardResponse;
 import com.harsh.csieventmangement.dto.response.ScoreResponse;
 import com.harsh.csieventmangement.entity.*;
 import com.harsh.csieventmangement.exception.ApiException;
 import com.harsh.csieventmangement.repository.*;
+import com.harsh.csieventmangement.security.CurrentUser;
 import com.harsh.csieventmangement.util.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import com.harsh.csieventmangement.repository.JudgeAssignmentRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,16 +25,36 @@ public class ScoreService {
     private final ScoreRepository scoreRepository;
     private final TeamRepository teamRepository;
     private final JudgingCriteriaRepository criteriaRepository;
-    private final UserRepository userRepository;
     private final JudgeAssignmentRepository judgeAssignmentRepository;
     private final EventJudgeRepository eventJudgeRepository;
+    private final LeaderboardService leaderboardService;
 
     @Transactional
     public String submitScore(SubmitScoreRequest request) {
 
-        User currentUser = getCurrentUser();
+        BatchScoreRequest.Entry entry = new BatchScoreRequest.Entry();
+        entry.setCriteriaId(request.getCriteriaId());
+        entry.setScoreValue(request.getScoreValue());
 
-        if (currentUser.getRole() != Role.JUDGE) {
+        BatchScoreRequest batch = new BatchScoreRequest();
+        batch.setTeamId(request.getTeamId());
+        batch.setScores(List.of(entry));
+
+        submitScores(batch);
+
+        return "Score saved successfully";
+    }
+
+    /**
+     * Saves all of a judge's scores for one team in one transaction: either
+     * every score is saved or none is. Existing scores are updated (upsert).
+     */
+    @Transactional
+    public String submitScores(BatchScoreRequest request) {
+
+        User judge = CurrentUser.get();
+
+        if (judge.getRole() != Role.JUDGE) {
             throw new ApiException("Only JUDGE can submit scores",
                     HttpStatus.FORBIDDEN);
         }
@@ -43,103 +64,84 @@ public class ScoreService {
                         new ApiException("Team not found",
                                 HttpStatus.NOT_FOUND));
 
-        // Judge assigned to team?
-        if (judgeAssignmentRepository
-                .findByTeamAndJudge(team, currentUser)
-                .isEmpty()) {
+        Event event = team.getEvent();
 
-            throw new ApiException(
-                    "Judge not assigned to this team",
-                    HttpStatus.FORBIDDEN
-            );
-        }
-
-        // Judge assigned to event?
-        if (eventJudgeRepository
-                .findByEventAndJudge(team.getEvent(), currentUser)
-                .isEmpty()) {
-
-            throw new ApiException(
-                    "Judge not assigned to this event",
-                    HttpStatus.FORBIDDEN
-            );
-        }
-
-        JudgingCriteria criteria =
-                criteriaRepository.findById(request.getCriteriaId())
-                        .orElseThrow(() ->
-                                new ApiException("Criteria not found",
-                                        HttpStatus.NOT_FOUND));
-
-        if (!team.getEvent().getId()
-                .equals(criteria.getEvent().getId())) {
-
-            throw new ApiException(
-                    "Team and criteria belong to different events",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
-
-        if (criteria.getEvent().isScoringLocked()) {
+        if (event.isScoringLocked()) {
             throw new ApiException(
                     "Scoring is locked for this event",
                     HttpStatus.BAD_REQUEST
             );
         }
 
-        if (request.getScoreValue() > criteria.getMaxScore()) {
-            throw new ApiException(
-                    "Score exceeds max allowed",
-                    HttpStatus.BAD_REQUEST
-            );
+        requireCanScore(judge, team, event);
+
+        // Load every criterion of the event once
+        Map<Long, JudgingCriteria> criteriaById = criteriaRepository
+                .findByEventIdOrderByIdAsc(event.getId())
+                .stream()
+                .collect(Collectors.toMap(JudgingCriteria::getId, Function.identity()));
+
+        Map<Long, Score> existing = scoreRepository.findByTeamAndJudge(team, judge)
+                .stream()
+                .collect(Collectors.toMap(s -> s.getCriteria().getId(), Function.identity()));
+
+        List<Score> toSave = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+
+        for (BatchScoreRequest.Entry entry : request.getScores()) {
+
+            if (!seen.add(entry.getCriteriaId())) {
+                continue; // ignore duplicates in the same request
+            }
+
+            JudgingCriteria criteria = criteriaById.get(entry.getCriteriaId());
+            if (criteria == null) {
+                throw new ApiException(
+                        "Criteria not found for this event",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
+
+            if (entry.getScoreValue() > criteria.getMaxScore()) {
+                throw new ApiException(
+                        "Score for '" + criteria.getTitle() + "' exceeds max of " + criteria.getMaxScore(),
+                        HttpStatus.BAD_REQUEST
+                );
+            }
+
+            // 🔥 UPSERT LOGIC (update if exists)
+            Score score = existing.get(criteria.getId());
+            if (score != null) {
+                score.setScoreValue(entry.getScoreValue());
+            } else {
+                score = Score.builder()
+                        .team(team)
+                        .judge(judge)
+                        .criteria(criteria)
+                        .scoreValue(entry.getScoreValue())
+                        .build();
+            }
+            toSave.add(score);
         }
 
-        // 🔥 UPSERT LOGIC (update if exists)
-        Score score = scoreRepository
-                .findByTeamAndJudgeAndCriteria(
-                        team, currentUser, criteria)
-                .orElse(null);
+        scoreRepository.saveAll(toSave);
 
-        if (score != null) {
-            score.setScoreValue(request.getScoreValue());
-        } else {
-            score = Score.builder()
-                    .team(team)
-                    .judge(currentUser)
-                    .criteria(criteria)
-                    .scoreValue(request.getScoreValue())
-                    .build();
-        }
-
-        scoreRepository.save(score);
-
-        return "Score saved successfully";
+        return toSave.size() == 1 ? "Score saved successfully" : "Scores saved successfully";
     }
 
-
-    private User getCurrentUser() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-
-        return userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new ApiException("User not found", HttpStatus.NOT_FOUND));
-    }
+    /** Live standings for organizers and judges (no lock required). */
+    @Transactional(readOnly = true)
     public List<LeaderboardResponse> getLeaderboard(Long eventId) {
-
-        List<Object[]> results = scoreRepository.calculateLeaderboard(eventId);
-
-        return results.stream()
-                .map(obj -> LeaderboardResponse.builder()
-                        .teamId((Long) obj[0])
-                        .teamName((String) obj[1])
-                        .totalScore((Long) obj[2])
-                        .build()
-                )
-                .collect(Collectors.toList());
+        return leaderboardService.buildLeaderboard(eventId);
     }
-    public List<ScoreResponse> getScoresByJudge() {
 
-        User judge = getCurrentUser();
+    /**
+     * Scores the current judge has given, optionally limited to one event.
+     */
+    @Transactional(readOnly = true)
+    public List<ScoreResponse> getScoresByJudge(Long eventId) {
+
+        User judge = CurrentUser.get();
 
         if (judge.getRole() != Role.JUDGE) {
             throw new ApiException(
@@ -148,8 +150,11 @@ public class ScoreService {
             );
         }
 
-        return scoreRepository.findByJudge(judge)
-                .stream()
+        List<Score> scores = eventId == null
+                ? scoreRepository.findByJudgeWithDetails(judge)
+                : scoreRepository.findByJudgeAndEventWithDetails(judge, eventId);
+
+        return scores.stream()
                 .map(score -> ScoreResponse.builder()
                         .scoreId(score.getId())
                         .teamId(score.getTeam().getId())
@@ -162,7 +167,27 @@ public class ScoreService {
                 .toList();
     }
 
+    /**
+     * A judge may score a team when they are assigned to its event, and
+     * either they were limited to specific teams that include this one, or
+     * they were not limited at all.
+     */
+    private void requireCanScore(User judge, Team team, Event event) {
 
+        if (!eventJudgeRepository.existsByEventAndJudge(event, judge)) {
+            throw new ApiException(
+                    "Judge not assigned to this event",
+                    HttpStatus.FORBIDDEN
+            );
+        }
 
+        boolean limitedToTeams = judgeAssignmentRepository.existsByJudgeAndEvent(judge, event);
 
+        if (limitedToTeams && !judgeAssignmentRepository.existsByTeamAndJudge(team, judge)) {
+            throw new ApiException(
+                    "Judge not assigned to this team",
+                    HttpStatus.FORBIDDEN
+            );
+        }
+    }
 }

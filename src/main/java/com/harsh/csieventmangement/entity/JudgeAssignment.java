@@ -17,17 +17,17 @@ public class JudgeAssignment {
     private Long id;
 
     // 🔹 Event
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id", nullable = false)
     private Event event;
 
     // 🔹 Team
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
     // 🔹 Judge (User with role JUDGE)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "judge_id", nullable = false)
     private User judge;
 }

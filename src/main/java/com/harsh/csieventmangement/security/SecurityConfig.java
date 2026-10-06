@@ -3,6 +3,9 @@ package com.harsh.csieventmangement.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -62,15 +65,25 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Return JSON 401 instead of HTML error page for unauthenticated requests
-                .exceptionHandling(ex ->
-                        ex.authenticationEntryPoint(authenticationEntryPoint)
+                // Return JSON 401/403 instead of HTML error pages
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler((request, response, denied) -> {
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write(
+                                    "{\"success\":false,\"message\":\"You don't have permission to do that.\",\"data\":null}");
+                        })
                 )
 
                 // Access rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()  // login + register
-                        .requestMatchers("/").permitAll()          // health check
+                        .requestMatchers("/", "/health", "/error").permitAll()  // health check + error page
+                        // Public pages required by Google Play (privacy policy, account deletion)
+                        .requestMatchers(HttpMethod.GET,
+                                "/privacy-policy", "/privacy-policy.html",
+                                "/delete-account", "/delete-account.html").permitAll()
                         .anyRequest().authenticated()              // everything else needs JWT
                 )
 

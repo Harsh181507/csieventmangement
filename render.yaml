@@ -1,7 +1,25 @@
 services:
   - type: web
     name: csieventmangement
-    env: java
-    buildCommand: mvn clean package
-    startCommand: java -jar target/csieventmangement.jar
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # "free" sleeps after 15 min idle (first request then takes ~1 min) and has
+    # 0.1 CPU. For event day use "starter" or higher, see README.md.
     plan: free
+    # The Supabase DB is in Tokyo (ap-northeast-1); Singapore is the closest
+    # Render region. Region is fixed when a service is created.
+    region: singapore
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Secrets: set these in the Render dashboard (Environment tab)
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DB_POOL_SIZE
+        value: "10"

@@ -34,4 +34,13 @@ public class JudgingCriteriaController {
     ) {
         return ResponseEntity.ok(criteriaService.getCriteriaByEvent(eventId));
     }
+
+    // 🔹 Delete Criteria (Only ORGANIZER)
+    @DeleteMapping("/{criteriaId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<String> deleteCriteria(
+            @PathVariable Long criteriaId
+    ) {
+        return ResponseEntity.ok(criteriaService.deleteCriteria(criteriaId));
+    }
 }

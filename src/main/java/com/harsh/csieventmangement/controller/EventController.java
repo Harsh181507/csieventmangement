@@ -44,6 +44,28 @@ public class EventController {
         );
     }
 
+    // 🔓 Unlock Scoring (Only ORGANIZER)
+    @PostMapping("/{eventId}/unlock")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<String> unlockScoring(
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(
+                eventService.unlockScoring(eventId)
+        );
+    }
+
+    // 🗑 Delete Event with its teams, criteria and scores (Only ORGANIZER)
+    @DeleteMapping("/{eventId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<String> deleteEvent(
+            @PathVariable Long eventId
+    ) {
+        return ResponseEntity.ok(
+                eventService.deleteEvent(eventId)
+        );
+    }
+
     @GetMapping("/judge")
     @PreAuthorize("hasRole('JUDGE')")
     public ResponseEntity<List<JudgeEventResponse>> getJudgeEvents() {

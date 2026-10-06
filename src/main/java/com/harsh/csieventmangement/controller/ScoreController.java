@@ -1,5 +1,6 @@
 package com.harsh.csieventmangement.controller;
 
+import com.harsh.csieventmangement.dto.request.BatchScoreRequest;
 import com.harsh.csieventmangement.dto.request.SubmitScoreRequest;
 import com.harsh.csieventmangement.dto.response.LeaderboardResponse;
 import com.harsh.csieventmangement.dto.response.ScoreResponse;
@@ -28,12 +29,23 @@ public class ScoreController {
         return ResponseEntity.ok(scoreService.submitScore(request));
     }
 
+    // All criteria scores for one team in a single request (all-or-nothing)
+    @PostMapping("/batch")
+    @PreAuthorize("hasRole('JUDGE')")
+    public ResponseEntity<String> submitScores(
+            @Valid @RequestBody BatchScoreRequest request
+    ) {
+        return ResponseEntity.ok(scoreService.submitScores(request));
+    }
+
 
     @GetMapping("/judge")
     @PreAuthorize("hasRole('JUDGE')")
-    public ResponseEntity<List<ScoreResponse>> getScoresByJudge() {
+    public ResponseEntity<List<ScoreResponse>> getScoresByJudge(
+            @RequestParam(required = false) Long eventId
+    ) {
         return ResponseEntity.ok(
-                scoreService.getScoresByJudge()
+                scoreService.getScoresByJudge(eventId)
         );
     }
     @GetMapping("/event/{eventId}/summary")

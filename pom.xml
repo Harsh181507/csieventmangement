@@ -130,6 +130,16 @@
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
 
+		<!--
+            Caffeine — in-memory cache. Used to cache the authenticated user so
+            the JWT filter does not hit the database on every request.
+            Version managed by the Spring Boot parent.
+        -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 		<!-- ================================================================ -->
 		<!-- TEST                                                              -->
 		<!-- ================================================================ -->
