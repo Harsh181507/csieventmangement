@@ -4,6 +4,7 @@ import com.harsh.csieventmangement.util.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -34,6 +35,13 @@ public class User {
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * When the password was last changed (whole seconds). Tokens issued
+     * before this are rejected, which signs out other devices.
+     */
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
 
     @PrePersist
     protected void onCreate() {

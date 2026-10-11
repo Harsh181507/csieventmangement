@@ -3,6 +3,7 @@ package com.harsh.csieventmangement.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.harsh.csieventmangement.dto.request.CreateEventRequest;
+import com.harsh.csieventmangement.dto.request.UpdateEventRequest;
 import com.harsh.csieventmangement.dto.response.EventResponse;
 import com.harsh.csieventmangement.dto.response.JudgeEventResponse;
 import com.harsh.csieventmangement.entity.Event;
@@ -19,6 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
 
 
@@ -28,7 +30,7 @@ public class EventService {
 
     private final EventRepository      eventRepository;
     private final TeamRepository       teamRepository;
-    private final TeamMemberRepository teamMemberRepository; // ← added for updateMaxTeamSize fix
+    private final TeamMemberRepository teamMemberRepository;
     private final EventJudgeRepository eventJudgeRepository;
     private final JudgeAssignmentRepository judgeAssignmentRepository;
     private final ScoreRepository scoreRepository;
@@ -61,8 +63,10 @@ public class EventService {
 
         Event event = Event.builder()
                 .title(request.getTitle().trim())
-                .description(request.getDescription())
+                .description(blankToNull(request.getDescription()))
                 .eventDate(request.getEventDate())
+                .eventTime(request.getEventTime())
+                .venue(blankToNull(request.getVenue()))
                 .createdBy(currentUser)
                 .maxTeamSize(request.getMaxTeamSize())
                 .build();
@@ -159,36 +163,49 @@ public class EventService {
     }
 
 
-    @Transactional
-    public String updateMaxTeamSize(Long eventId, Integer newMaxSize) {
+    // =========================================================================
+    // UPDATE EVENT
+    // =========================================================================
 
-        if (newMaxSize == null || newMaxSize <= 0) {
-            throw new ApiException(
-                    "Max team size must be greater than 0",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
+    /**
+     * Edits an event's details. The team size can't drop below the size of the
+     * biggest existing team, and a past date can be kept but not chosen anew.
+     */
+    @Transactional
+    public EventResponse updateEvent(Long eventId, UpdateEventRequest request) {
 
         Event event = findEvent(eventId);
 
-        // FIX: was teamRepository.findAll().filter().forEach(team.getMembers().size())
-        // Now use TeamMemberRepository.countByTeam() instead of the deleted members Set
-        teamRepository.findByEventId(eventId).forEach(team -> {
-            long memberCount = teamMemberRepository.countByTeam(team);
-            if (memberCount > newMaxSize) {
-                throw new ApiException(
-                        "Cannot reduce max team size — team '" + team.getTeamName()
-                                + "' already has " + memberCount + " members",
-                        HttpStatus.BAD_REQUEST
-                );
-            }
-        });
+        LocalDate newDate = request.getEventDate();
+        if (!newDate.equals(event.getEventDate()) && newDate.isBefore(LocalDate.now())) {
+            throw new ApiException("Event date cannot be in the past", HttpStatus.BAD_REQUEST);
+        }
 
+        int newMaxSize = request.getMaxTeamSize();
+        if (newMaxSize < event.getMaxTeamSize()) {
+            teamRepository.findByEventId(eventId).forEach(team -> {
+                long memberCount = teamMemberRepository.countByTeam(team);
+                if (memberCount > newMaxSize) {
+                    throw new ApiException(
+                            "Team size can't be less than " + memberCount + " — team '"
+                                    + team.getTeamName() + "' already has " + memberCount + " members",
+                            HttpStatus.BAD_REQUEST
+                    );
+                }
+            });
+        }
+
+        event.setTitle(request.getTitle().trim());
+        event.setDescription(blankToNull(request.getDescription()));
+        event.setEventDate(newDate);
+        event.setEventTime(request.getEventTime());
+        event.setVenue(blankToNull(request.getVenue()));
         event.setMaxTeamSize(newMaxSize);
-        eventRepository.save(event);
+
+        Event saved = eventRepository.save(event);
         invalidateEventsCache();
 
-        return "Max team size updated successfully";
+        return mapToResponse(saved);
     }
 
     // =========================================================================
@@ -215,6 +232,8 @@ public class EventService {
                         .title(ej.getEvent().getTitle())
                         .description(ej.getEvent().getDescription())
                         .eventDate(ej.getEvent().getEventDate())
+                        .eventTime(ej.getEvent().getEventTime())
+                        .venue(ej.getEvent().getVenue())
                         .scoringLocked(ej.getEvent().isScoringLocked())
                         .build()
                 )
@@ -240,6 +259,10 @@ public class EventService {
         } else {
             eventsCache.invalidateAll();
         }
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private Event findEvent(Long eventId) {
@@ -269,6 +292,8 @@ public class EventService {
                 .title(event.getTitle())
                 .description(event.getDescription())
                 .eventDate(event.getEventDate())
+                .eventTime(event.getEventTime())
+                .venue(event.getVenue())
                 .createdBy(createdById)
                 .maxTeamSize(event.getMaxTeamSize())
                 .scoringLocked(event.isScoringLocked())

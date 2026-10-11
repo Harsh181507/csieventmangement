@@ -15,12 +15,15 @@ Built with Java 21, Spring Boot 3.4, Spring Security (JWT), and PostgreSQL. Cont
 ## Features
 
 - **Role-based access control** — four roles (`ORGANIZER`, `STUDENT`, `VOLUNTEER`, `JUDGE`) with JWT-secured, stateless authentication
-- **Event lifecycle management** — create and delete events, set a max team size, lock (and unlock) scoring
-- **Team formation** — students create teams or join an existing one via a shareable join code (only visible to the team's members)
+- **Event lifecycle management** — create, edit and delete events (date, start time, venue, max team size), lock (and unlock) scoring
+- **Team formation** — students create teams or join an existing one via a shareable join code (only visible to the team's members); leaders can rename the team and remove members
 - **Judge assignment** — organizers assign judges to an event to score all teams, or limit them to specific teams
 - **Custom judging criteria** — define per-event scoring criteria with configurable max scores
 - **Scoring & leaderboard** — judges submit all of a team's scores in one request; the leaderboard ranks teams by average score per judge
-- **Account deletion** — users can delete their own account (required by Google Play)
+- **Results export** — organizers download every team's rank, per-criterion averages and members as CSV
+- **College accounts only** — sign-up is limited to configured email domains (default `vitapstudent.ac.in`)
+- **Account security** — 5 wrong passwords lock an email for 15 minutes; changing the password signs out other devices
+- **Account management** — users can rename themselves, change their password and delete their account (required by Google Play)
 - **Centralized error handling** — consistent JSON error responses via a global exception handler
 - **Built for bursts** — cached user lookups, batched queries and row locks so 200 users can hit it at once
 
@@ -80,13 +83,15 @@ All endpoints are prefixed relative to the app root. `/auth/**`, `/`, `/health` 
 ### Auth
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/auth/register` | Register a new user (always `STUDENT`) |
-| POST | `/auth/login` | Log in and receive a JWT (email is case-insensitive) |
+| POST | `/auth/register` | Register a new user (always `STUDENT`); email must be on an allowed domain |
+| POST | `/auth/login` | Log in and receive a JWT (email is case-insensitive). 429 after 5 wrong passwords, for 15 minutes |
 
 ### Events
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/events` | Create an event (organizer) |
+| POST | `/events` | Create an event (organizer): `title`, `description`, `eventDate`, `eventTime` (`HH:mm`), `venue`, `maxTeamSize` |
+| PUT | `/events/{eventId}` | Edit an event, same fields (organizer). Team size can't go below the biggest team |
+| GET | `/events/{eventId}/results.csv` | Full results as CSV: rank, averages per criterion, members (organizer) |
 | GET | `/events` | List all events, newest first |
 | GET | `/events/{eventId}` | Get one event |
 | POST | `/events/{eventId}/lock` | Lock scoring for an event (organizer) |
@@ -104,13 +109,14 @@ All endpoints are prefixed relative to the app root. `/auth/**`, `/`, `/health` 
 | GET | `/teams/my` | All of the current student's teams, across events |
 | POST | `/teams/join-by-code?code=` | Join a team using its join code |
 | POST | `/teams/join/{teamId}` | Join a team by ID |
+| PUT | `/teams/{teamId}/name?teamName=` | Rename a team (team leader, before scoring is locked) |
 | DELETE | `/teams/{teamId}/leave` | Leave a team |
 
 ### Team Members
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/team-members/{teamId}/add/{userId}` | Add a member to a team (team leader only) |
-| DELETE | `/team-members/{teamMemberId}` | Remove a team member (team leader only) |
+| DELETE | `/team-members/{teamMemberId}` | Remove a team member (team leader only, before scoring is locked). IDs are in a team's `memberDetails` |
 
 ### Judging Criteria
 | Method | Endpoint | Description |
@@ -145,6 +151,8 @@ Leaderboard score = average total per judge, so teams scored by different number
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/users/me` | Current user's profile |
+| PUT | `/users/me` | `{name}` — rename yourself |
+| POST | `/users/me/password` | `{currentPassword, newPassword}` — returns a new token; other devices are signed out |
 | POST | `/users/me/delete` | `{password}` — permanently delete own account |
 | PUT | `/users/role` | Update a user's role (organizer) |
 | GET | `/users/judges` | List all judges (organizer) |
@@ -186,6 +194,7 @@ All secrets come from environment variables only; nothing secret is committed.
 | `JWT_SECRET` | yes | Random string, at least 32 characters |
 | `JWT_EXPIRATION_MS` | no | Token lifetime, default 7 days (`604800000`) |
 | `DB_POOL_SIZE` | no | Max DB connections, default `10` |
+| `ALLOWED_EMAIL_DOMAINS` | no | Domains allowed to sign up, comma-separated. Default `vitapstudent.ac.in`; empty allows any. Existing accounts can always log in |
 | `PORT` | no | Set by Render automatically |
 
 > **Security note:** older commits of `application.properties` contained real database credentials and a JWT secret. Rotate the Supabase database password; the JWT secret is replaced by whatever you set in `JWT_SECRET` (existing app logins will need to sign in again).
@@ -262,13 +271,16 @@ backend in Docker limited to each plan's CPU and 512 MB RAM:
 
 ### Database scripts
 
-Run these once in Supabase (**SQL Editor → New query → Run**). Both are safe to re-run.
+Run these once in Supabase (**SQL Editor → New query → Run**). All are safe to re-run.
 
 - `db/001_indexes.sql` — indexes on foreign keys used by every screen.
 - `db/002_team_members_per_event.sql` — checks for an old unique constraint that stops a student
   joining teams in more than one event, with instructions to drop it.
 - `db/003_drop_duplicate_indexes.sql` — removes unique constraints/indexes that were created more
   than once, and collects table statistics. (Already applied to the production database.)
+- `db/004_event_time_venue_password_changed.sql` — adds event start time and venue, and the column
+  that signs out other devices after a password change. **Run it before deploying the backend
+  version that uses them**, or event and login requests will fail.
 
 ### Google Play pages
 

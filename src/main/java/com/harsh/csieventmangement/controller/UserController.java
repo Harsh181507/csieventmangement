@@ -1,7 +1,10 @@
 package com.harsh.csieventmangement.controller;
 
+import com.harsh.csieventmangement.dto.request.ChangePasswordRequest;
 import com.harsh.csieventmangement.dto.request.DeleteAccountRequest;
+import com.harsh.csieventmangement.dto.request.UpdateProfileRequest;
 import com.harsh.csieventmangement.dto.request.UpdateUserRoleRequest;
+import com.harsh.csieventmangement.dto.response.AuthResponse;
 import com.harsh.csieventmangement.dto.response.UserResponse;
 import com.harsh.csieventmangement.service.UserService;
 import jakarta.validation.Valid;
@@ -48,6 +51,24 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserResponse> getMe() {
         return ResponseEntity.ok(userService.getMe());
+    }
+
+
+    // Rename the logged-in user (any role)
+    @PutMapping("/me")
+    public ResponseEntity<UserResponse> updateMe(
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        return ResponseEntity.ok(userService.updateMyName(request.getName()));
+    }
+
+
+    // Change password; signs out other devices and returns a new token for this one
+    @PostMapping("/me/password")
+    public ResponseEntity<AuthResponse> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        return ResponseEntity.ok(userService.changeMyPassword(request));
     }
 
 

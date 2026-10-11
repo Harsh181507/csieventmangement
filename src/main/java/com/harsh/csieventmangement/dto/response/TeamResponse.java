@@ -46,10 +46,25 @@ public class TeamResponse {
     /** Names of all team members. */
     private List<String> members;
 
+    /** Members with their IDs, so a leader can remove one. Same order as {@link #members}. */
+    private List<Member> memberDetails;
+
     /**
      * The unique join code for this team.
      * Leaders share this with teammates who enter it to join.
      * Example: "A3F9B2C1"
      */
     private String joinCode;
+
+    @Getter
+    @Setter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class Member {
+        /** Team-membership ID, used by DELETE /team-members/{id}. */
+        private Long id;
+        private Long userId;
+        private String name;
+    }
 }

@@ -104,6 +104,10 @@ public class TeamMemberService {
 
         requireLeader(team, currentUser);
 
+        if (team.getEvent().isScoringLocked()) {
+            throw new ApiException("Teams can't be changed after judging is complete", HttpStatus.BAD_REQUEST);
+        }
+
         // ❌ Prevent removing leader
         if (team.getLeader().getId().equals(member.getUser().getId())) {
             throw new ApiException("Cannot remove team leader", HttpStatus.BAD_REQUEST);

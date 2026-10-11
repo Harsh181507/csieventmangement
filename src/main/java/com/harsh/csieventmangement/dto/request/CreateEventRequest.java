@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -24,6 +25,12 @@ public class CreateEventRequest {
     @NotNull(message = "Event date is required")
     @FutureOrPresent(message = "Event date cannot be in the past")
     private LocalDate eventDate;
+
+    /** Start time, e.g. "10:30". Optional for older app versions. */
+    private LocalTime eventTime;
+
+    @Size(max = 200, message = "Venue cannot exceed 200 characters")
+    private String venue;
 
     @NotNull(message = "Max team size is required")
     @Min(value = 1, message = "Max team size must be at least 1")

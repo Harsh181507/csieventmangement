@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +31,13 @@ public class Event {
 
     @Column(name = "event_date")
     private LocalDate eventDate;
+
+    /** Start time on {@link #eventDate}; null for events created before times were added. */
+    @Column(name = "event_time")
+    private LocalTime eventTime;
+
+    @Column(length = 200)
+    private String venue;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

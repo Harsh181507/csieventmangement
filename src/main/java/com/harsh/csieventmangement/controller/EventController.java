@@ -1,15 +1,21 @@
 package com.harsh.csieventmangement.controller;
 
 import com.harsh.csieventmangement.dto.request.CreateEventRequest;
+import com.harsh.csieventmangement.dto.request.UpdateEventRequest;
 import com.harsh.csieventmangement.dto.response.EventResponse;
 import com.harsh.csieventmangement.dto.response.JudgeEventResponse;
 import com.harsh.csieventmangement.service.EventService;
+import com.harsh.csieventmangement.service.ResultsExportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -18,6 +24,7 @@ import java.util.List;
 public class EventController {
 
     private final EventService eventService;
+    private final ResultsExportService resultsExportService;
 
     
     @PostMapping
@@ -50,6 +57,30 @@ public class EventController {
             @PathVariable Long eventId
     ) {
         return ResponseEntity.ok(eventService.getEvent(eventId));
+    }
+
+    // ✏️ Edit an event's details (Only ORGANIZER)
+    @PutMapping("/{eventId}")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<EventResponse> updateEvent(
+            @PathVariable Long eventId,
+            @Valid @RequestBody UpdateEventRequest request
+    ) {
+        return ResponseEntity.ok(eventService.updateEvent(eventId, request));
+    }
+
+    // 📄 Full results as a CSV file, for spreadsheets / certificates (Only ORGANIZER)
+    @GetMapping("/{eventId}/results.csv")
+    @PreAuthorize("hasRole('ORGANIZER')")
+    public ResponseEntity<byte[]> exportResults(
+            @PathVariable Long eventId
+    ) {
+        ResultsExportService.CsvFile file = resultsExportService.exportResults(eventId);
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(file.fileName()).build().toString())
+                .body(file.content().getBytes(StandardCharsets.UTF_8));
     }
 
     // 🔓 Unlock Scoring (Only ORGANIZER)

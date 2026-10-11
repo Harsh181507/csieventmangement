@@ -70,6 +70,17 @@ public class TeamController {
     }
 
 
+    // Leader renames their team
+    @PutMapping("/{teamId}/name")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<TeamResponse> renameTeam(
+            @PathVariable Long teamId,
+            @RequestParam String teamName
+    ) {
+        return ResponseEntity.ok(teamService.renameTeam(teamId, teamName));
+    }
+
+
     @DeleteMapping("/{teamId}/leave")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<String> leaveTeam(

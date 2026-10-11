@@ -44,6 +44,8 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
 
     boolean existsByTeamNameIgnoreCaseAndEvent(String teamName, Event event);
 
+    boolean existsByTeamNameIgnoreCaseAndEventAndIdNot(String teamName, Event event, Long id);
+
     boolean existsByJoinCode(String joinCode);
 
     @Modifying

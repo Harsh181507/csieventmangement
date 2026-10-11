@@ -1,5 +1,6 @@
 package com.harsh.csieventmangement.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Date;
 
 @Slf4j
 @Component
@@ -46,11 +49,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 // Signature + expiry are checked while parsing
-                String userEmail = jwtUtil.validateAndGetEmail(authHeader.substring(7));
+                Claims claims = jwtUtil.validateAndGetClaims(authHeader.substring(7));
 
                 // Served from an in-memory cache, so most requests skip the DB
                 CustomUserDetails userDetails =
-                        (CustomUserDetails) userDetailsService.loadUserByUsername(userEmail);
+                        (CustomUserDetails) userDetailsService.loadUserByUsername(claims.getSubject());
+
+                // Changing the password signs out every other device
+                if (issuedBefore(claims.getIssuedAt(), userDetails.getUser().getPasswordChangedAt())) {
+                    throw new JwtException("Token issued before the last password change");
+                }
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
@@ -84,5 +92,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static boolean issuedBefore(Date issuedAt, Instant passwordChangedAt) {
+        return passwordChangedAt != null
+                && (issuedAt == null || issuedAt.toInstant().isBefore(passwordChangedAt));
     }
 }

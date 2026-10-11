@@ -57,6 +57,15 @@ public interface ScoreRepository extends JpaRepository<Score, Long> {
     """)
     List<Object[]> calculateLeaderboard(@Param("eventId") Long eventId);
 
+    /** Average score per team per criterion. Rows are [teamId, criteriaId, average]. */
+    @Query("""
+        SELECT s.team.id, s.criteria.id, AVG(s.scoreValue)
+        FROM Score s
+        WHERE s.team.event.id = :eventId
+        GROUP BY s.team.id, s.criteria.id
+    """)
+    List<Object[]> averageByTeamAndCriteria(@Param("eventId") Long eventId);
+
     @Modifying
     @Query("DELETE FROM Score s WHERE s.team.id IN (SELECT t.id FROM Team t WHERE t.event.id = :eventId)")
     void deleteByEventId(@Param("eventId") Long eventId);

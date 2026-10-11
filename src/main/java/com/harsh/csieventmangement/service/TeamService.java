@@ -67,16 +67,7 @@ public class TeamService {
 
         User currentUser = lockCurrentStudent("create teams");
 
-        String name = teamName == null ? "" : teamName.trim();
-        if (name.isEmpty()) {
-            throw new ApiException("Team name is required", HttpStatus.BAD_REQUEST);
-        }
-        if (name.length() > MAX_TEAM_NAME_LENGTH) {
-            throw new ApiException(
-                    "Team name cannot exceed " + MAX_TEAM_NAME_LENGTH + " characters",
-                    HttpStatus.BAD_REQUEST
-            );
-        }
+        String name = validTeamName(teamName);
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() ->
@@ -175,6 +166,36 @@ public class TeamService {
         addMember(teamId, currentUser);
 
         return "Joined team successfully";
+    }
+
+    // =========================================================================
+    // RENAME TEAM
+    // =========================================================================
+
+    /** Renames a team. Leader only, while the event is still open. */
+    @Transactional
+    public TeamResponse renameTeam(Long teamId, String teamName) {
+
+        User currentUser = CurrentUser.get();
+        String name = validTeamName(teamName);
+
+        Team team = teamRepository.findByIdForUpdate(teamId)
+                .orElseThrow(() -> new ApiException("Team not found", HttpStatus.NOT_FOUND));
+
+        if (team.getLeader() == null || !team.getLeader().getId().equals(currentUser.getId())) {
+            throw new ApiException("Only the team leader can rename the team", HttpStatus.FORBIDDEN);
+        }
+        if (team.getEvent().isScoringLocked()) {
+            throw new ApiException("Teams can't be changed after judging is complete", HttpStatus.BAD_REQUEST);
+        }
+        if (teamRepository.existsByTeamNameIgnoreCaseAndEventAndIdNot(name, team.getEvent(), team.getId())) {
+            throw new ApiException("A team with this name already exists for this event", HttpStatus.CONFLICT);
+        }
+
+        team.setTeamName(name);
+        teamRepository.save(team);
+
+        return mapToResponses(List.of(team), currentUser).get(0);
     }
 
     // =========================================================================
@@ -288,6 +309,14 @@ public class TeamService {
                             : "Unknown")
                     .toList();
 
+            List<TeamResponse.Member> memberDetails = members.stream()
+                    .map(tm -> TeamResponse.Member.builder()
+                            .id(tm.getId())
+                            .userId(tm.getUser().getId())
+                            .name(tm.getUser().getName() != null ? tm.getUser().getName() : "Unknown")
+                            .build())
+                    .toList();
+
             Long   leaderId   = team.getLeader() != null ? team.getLeader().getId()   : null;
             String leaderName = team.getLeader() != null ? team.getLeader().getName() : null;
 
@@ -298,6 +327,7 @@ public class TeamService {
                     .leaderId(leaderId)
                     .leaderName(leaderName)
                     .members(memberNames)
+                    .memberDetails(memberDetails)
                     .joinCode(organizer || viewerIsMember ? team.getJoinCode() : null)
                     .build();
         }).toList();
@@ -357,6 +387,20 @@ public class TeamService {
      * Returns the current user after locking their row for this transaction.
      * Ensures only students reach team create/join logic.
      */
+    private static String validTeamName(String teamName) {
+        String name = teamName == null ? "" : teamName.trim();
+        if (name.isEmpty()) {
+            throw new ApiException("Team name is required", HttpStatus.BAD_REQUEST);
+        }
+        if (name.length() > MAX_TEAM_NAME_LENGTH) {
+            throw new ApiException(
+                    "Team name cannot exceed " + MAX_TEAM_NAME_LENGTH + " characters",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
+        return name;
+    }
+
     private User lockCurrentStudent(String action) {
 
         User currentUser = CurrentUser.get();

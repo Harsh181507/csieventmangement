@@ -50,11 +50,11 @@ public class JwtUtil {
     /**
      * Parses and validates the token (signature + expiry) in a single pass.
      *
-     * @return the email (subject) stored in the token
+     * @return the token's claims; the subject is the user's email
      * @throws io.jsonwebtoken.JwtException if the token is invalid or expired
      */
-    public String validateAndGetEmail(String token) {
-        return extractAllClaims(token).getSubject();
+    public Claims validateAndGetClaims(String token) {
+        return extractAllClaims(token);
     }
 
     private Claims extractAllClaims(String token) {

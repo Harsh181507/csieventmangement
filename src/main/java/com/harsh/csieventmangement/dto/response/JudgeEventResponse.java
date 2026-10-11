@@ -3,6 +3,7 @@ package com.harsh.csieventmangement.dto.response;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 
 @Getter
 @Setter
@@ -15,5 +16,7 @@ public class JudgeEventResponse {
     private String title;
     private String description;
     private LocalDate eventDate;
+    private LocalTime eventTime;
+    private String venue;
     private boolean scoringLocked;
 }
